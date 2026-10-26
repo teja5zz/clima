@@ -240,7 +240,7 @@ def plot_location_epw_files():
             height=500,
         )
         fig.add_trace(fig2.data[0])
-    except requests.exceptions.ConnectTimeout:
+    except requests.exceptions.RequestException:
         pass
     fig.update_layout(mapbox_style="carto-positron")
     fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})

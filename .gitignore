@@ -280,3 +280,10 @@ bh_unicode_properties.cache
 # Sublime-github package stores a github token in this file
 # https://packagecontrol.io/packages/sublime-github
 GitHub.sublime-settings
+# Firebase
+.firebase/
+firebase-debug.log
+firebase/functions/node_modules/
+
+# Dash server-side cache
+file_system_backend/

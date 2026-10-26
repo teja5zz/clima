@@ -9,6 +9,10 @@ It can be freely accessed at [clima.cbe.berkeley.edu](http://clima.cbe.berkeley.
 
 If you use this tool please consider citing us.
 
+## Climate & Vastu Studio — Tejas Constructions (new website)
+
+The [`website/`](website/) folder holds an India-focused website built on this tool and hosted on Firebase. It offers one-click data for 405 Indian weather stations, NBC 2016 climate zones, IMAC adaptive comfort, a Vastu × Science room-placement planner, a strategy advisor, a shading designer and Eco-Niwas Samhita envelope checks. See [website/README.md](website/README.md) for running it and deploying to Firebase.
+
 ## Official documentation
 
 [Official documentation](https://center-for-the-built-environment.gitbook.io/clima/).

@@ -1,0 +1,27 @@
+name: Website tests
+on:
+  push:
+    branches-ignore: [main]
+    paths:
+      - "website/**"
+      - "firebase/**"
+      - "firebase.json"
+      - ".github/workflows/website.yml"
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Science engine and Vastu planner tests
+        run: node --test website/tests/science.test.js
+      - name: Cloud Function tests
+        run: node --test firebase/functions/test/proxy.test.js

@@ -12,8 +12,9 @@ dash-extensions = "==1.0.7"
 dash-mantine-components = "*"
 requests = "*"
 plotly = "*"
-pandas = "*"
-numpy = "*"
+kgcpy = "==1.1.8"
+pandas = "==2.2.0"
+numpy = "==1.26.3"
 
 [dev-packages]
 cleanpy = "*"
