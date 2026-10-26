@@ -9,6 +9,10 @@ It can be freely accessed at [clima.cbe.berkeley.edu](http://clima.cbe.berkeley.
 
 If you use this tool please consider citing us.
 
+## Climate Studio India (new website)
+
+The [`website/`](website/) folder contains a standalone, browser-only website built on this tool and focused on India. It covers NBC 2016 climate zones, IMAC adaptive comfort, a strategy advisor, a shading designer and Eco-Niwas Samhita envelope checks. See [website/README.md](website/README.md).
+
 ## Official documentation
 
 [Official documentation](https://center-for-the-built-environment.gitbook.io/clima/).
