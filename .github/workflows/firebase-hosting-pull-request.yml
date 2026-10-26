@@ -1,0 +1,35 @@
+# Builds a Firebase Hosting preview channel for each pull request and comments its URL on the PR.
+name: Deploy to Firebase Hosting on PR
+on:
+  pull_request:
+    paths:
+      - "website/**"
+      - "firebase/**"
+      - "firebase.json"
+      - ".github/workflows/firebase-hosting-pull-request.yml"
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  test:
+    uses: ./.github/workflows/website.yml
+
+  preview:
+    needs: test
+    # secrets are not available to pull requests from forks
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use static-only config when functions are not deployed
+        if: vars.DEPLOY_FUNCTIONS != 'true'
+        run: node -e "const f='firebase.json',c=require('./'+f);delete c.hosting.rewrites;require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CLIMATE_AND_VASTU_STUDIO }}
+          projectId: climate-and-vastu-studio
+          expires: 7d

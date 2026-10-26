@@ -67,6 +67,8 @@
           ", built to help architects, engineers, students, builders and home-owners across India design buildings that are comfortable, healthy and low-energy in a warming climate.</p>" +
           "<p>All calculations run locally in your web browser. Weather files you load are never uploaded to any server.</p>" +
           '<p class="muted small">Edit <code>js/config.js</code> to set the company name, contact details and brand colour shown throughout the site.</p>') +
+        App.card("Privacy", "<p>Weather files, plan images and everything you type are processed in your browser and are never uploaded. When you load a station, its public weather file is fetched through our Firebase server from the original source.</p>" +
+          "<p>If you allow it, Google Analytics for Firebase records anonymous page views and which tools are used (for example, that a Vastu plan was printed or which climate zone a loaded file belongs to). Advertising features and Google signals are switched off. You can change your choice at any time with “Usage statistics settings” at the bottom of every page.</p>") +
         App.card("How to cite", '<div class="cite-box"><p>When you use results from this site, please cite the open-source engine it is built on:</p>' +
           "<blockquote>Betti, G., Tartarini, F., Nguyen, C., Schiavon, S. CBE Clima Tool: A free and open-source web application for climate analysis tailored to sustainable building design. <em>Build. Simul.</em> (2023). " +
           '<a href="https://doi.org/10.1007/s12273-023-1090-5" target="_blank" rel="noopener">https://doi.org/10.1007/s12273-023-1090-5</a></blockquote>' +

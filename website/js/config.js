@@ -26,3 +26,20 @@ window.SITE = {
   epwProxy: "/api/epw",
   stationCatalogue: "data/india-stations.json",
 };
+
+/* Firebase web app (project climate-and-vastu-studio). These identifiers are public by
+   design; access is controlled by Firebase security rules, not by hiding them.
+   Analytics only starts after the visitor accepts the consent banner. */
+window.FIREBASE = {
+  sdkVersion: "12.19.0",
+  analytics: true,
+  config: {
+    apiKey: "AIzaSyDFvXK8DD64NBG81VKPmaP9Lad9ctv1TSg",
+    authDomain: "climate-and-vastu-studio.firebaseapp.com",
+    projectId: "climate-and-vastu-studio",
+    storageBucket: "climate-and-vastu-studio.firebasestorage.app",
+    messagingSenderId: "139127575101",
+    appId: "1:139127575101:web:7786b05f7489c23a3fd054",
+    measurementId: "G-0Y9HCEL68P",
+  },
+};

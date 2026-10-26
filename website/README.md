@@ -37,25 +37,60 @@ npm install --prefix firebase/functions
 firebase emulators:start --only hosting,functions --project demo-climate-vastu
 ```
 
-## Deploy to Firebase
+## Deploy to Firebase (project `climate-and-vastu-studio`)
 
-1. Create a Firebase project and upgrade it to the **Blaze** (pay-as-you-go) plan, which Cloud Functions require.
-   Typical traffic for this site stays within the free monthly quota.
-2. Put the project ID in `.firebaserc` (replace `your-firebase-project-id`).
-3. Deploy from the repository root:
+### Automatic deploys with GitHub Actions
+
+| Workflow | When | What |
+| --- | --- | --- |
+| `website.yml` | every push to other branches | Runs all tests |
+| `firebase-hosting-pull-request.yml` | every pull request | Tests, then a 7-day **preview URL** posted as a PR comment |
+| `firebase-hosting-merge.yml` | every merge to `main` | Tests, then deploys the **live** site to `climate-and-vastu-studio.web.app` (and the Cloud Function if enabled) |
+
+**One-time setup:**
+
+1. Create the service-account secret. The easiest way is to run these commands on your computer:
 
    ```bash
    npm install -g firebase-tools
    firebase login
-   npm install --prefix firebase/functions
-   firebase deploy --only hosting,functions
+   firebase init hosting:github      # pick repo teja5zz/clima; say No to overwriting the workflow files
    ```
 
-4. Optional: connect your own domain, such as `tools.tejas-constructions.in`, under Hosting → Add custom domain.
+   This creates a Google service account and stores its key as the repository secret
+   **`FIREBASE_SERVICE_ACCOUNT_CLIMATE_AND_VASTU_STUDIO`**. If the CLI rewrites the workflow files anyway, run
+   `git checkout .github/workflows` to restore the ones in this repo.
 
-**Automatic deploys:** `.github/workflows/website.yml` runs all tests on every change. It deploys from `main` once you add
-the repository variable `FIREBASE_PROJECT_ID` and the secret `FIREBASE_SERVICE_ACCOUNT`, which is the JSON key of a
-service account with the *Firebase Admin* role.
+   *Manual alternative:* in Google Cloud Console → IAM → Service accounts, create a key for a service account
+   with the **Firebase Hosting Admin** role. Paste the JSON into GitHub → Settings → Secrets and variables →
+   Actions → New repository secret, using the name above.
+
+2. Optional, for one-click station loading: upgrade the Firebase project to the **Blaze** plan, which Cloud Functions
+   require. Normal traffic stays within the free quota. Then:
+   - Give the same service account the **Cloud Functions Admin**, **Cloud Run Admin**, **Service Account User** and
+     **Artifact Registry Administrator** roles. If a deploy reports a missing permission, add the role it names.
+   - Add the repository **variable** `DEPLOY_FUNCTIONS` = `true` (Settings → Secrets and variables → Actions → Variables).
+
+   Without this step the site is deployed with Hosting only. Every tool still works, and visitors upload weather
+   files they downloaded themselves; the station finder links to each file.
+
+3. Merge the website branch into `main`. The live site appears at <https://climate-and-vastu-studio.web.app>.
+   You can also add `tools.tejas-constructions.in` under Firebase → Hosting → Add custom domain.
+
+### Manual deploy
+
+```bash
+firebase login
+npm install --prefix firebase/functions
+firebase deploy --only hosting,functions      # Blaze plan
+firebase deploy --only hosting                # Spark plan: first remove "rewrites" from firebase.json
+```
+
+### Analytics
+
+`js/config.js` holds the Firebase web-app config, which is public by design. Google Analytics for Firebase only loads
+after a visitor presses **Allow** in the consent banner. Advertising features and Google signals are off, and weather
+files, plans and inputs are never sent. Set `FIREBASE.analytics` to `false` to remove analytics entirely.
 
 ### What the Cloud Function does
 

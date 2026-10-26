@@ -117,6 +117,7 @@ window.App = window.App || {};
     App.renderLocationBar();
     App.syncShareUrl();
     ds.warnings.forEach(function (w) { App.toast(w, "warn"); });
+    if (App.track) App.track("weather_loaded", { source: ds.meta.sourceUrl ? (/onebuilding/.test(ds.meta.sourceUrl) ? "onebuilding" : "energyplus") : "upload", zone: ds.nbc.zone });
     App.toast("Loaded " + ds.meta.city + " — " + S.NBC_ZONES[ds.nbc.zone].label + " climate (NBC 2016).", "ok");
     App.updateNav();
   };

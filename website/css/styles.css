@@ -383,3 +383,12 @@ body.dragging .drop-overlay { display: grid; }
 @media (max-width: 960px) { .finder { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) { .st-row { flex-direction: column; align-items: stretch; } .st-act { justify-content: space-between; } .wheel-tools { grid-template-columns: minmax(0, 1fr); } }
 @media print { .wheel-tools, .room-chips, .zone-card, .wheel-legend { display: none !important; } .vastu-grid { display: block; } }
+
+/* ---------- consent ---------- */
+.consent { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 90; max-width: 760px; margin: 0 auto; background: #fff; border: 1px solid var(--line);
+  border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,.18); padding: 14px 16px; display: flex; gap: 14px; align-items: center; }
+.consent p { margin: 0; font-size: .86rem; }
+.consent-btns { display: flex; gap: 8px; flex: none; }
+.linklike { background: none; border: 0; padding: 0; font: inherit; color: #fdba74; text-decoration: underline; cursor: pointer; }
+@media (max-width: 640px) { .consent { flex-direction: column; align-items: stretch; } .consent-btns { justify-content: flex-end; } }
+@media print { .consent { display: none !important; } }

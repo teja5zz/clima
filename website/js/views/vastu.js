@@ -76,6 +76,7 @@
         const f = e.target.files[0];
         if (!f) return;
         const r = new FileReader();
+        if (App.track) App.track("vastu_plan_overlay");
         r.onload = function () { sel.img = r.result; if (sel.opacity > 0.6) { sel.opacity = 0.55; App.$("#vz-op", root).value = 0.55; } drawWheel(root, ds, metrics); };
         r.readAsDataURL(f);
       });
@@ -91,7 +92,7 @@
         const t = e.target.closest("[data-zone]");
         if (t && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); sel.zone = t.dataset.zone; drawZone(root, ds, metrics); drawWheel(root, ds, metrics); }
       });
-      bind("#vz-print", "click", function () { window.print(); });
+      bind("#vz-print", "click", function () { if (App.track) App.track("vastu_print"); window.print(); });
       bind("#vz-share", "click", function () {
         const link = App.shareLink();
         (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(function () { App.toast("Link copied — it opens this location's analysis.", "ok"); },

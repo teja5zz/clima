@@ -1,17 +1,13 @@
-name: Website (Climate & Vastu Studio)
+name: Website tests
 on:
   push:
+    branches-ignore: [main]
     paths:
       - "website/**"
       - "firebase/**"
       - "firebase.json"
-      - ".firebaserc"
       - ".github/workflows/website.yml"
-  pull_request:
-    paths:
-      - "website/**"
-      - "firebase/**"
-      - "firebase.json"
+  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -29,25 +25,3 @@ jobs:
         run: node --test website/tests/science.test.js
       - name: Cloud Function tests
         run: node --test firebase/functions/test/proxy.test.js
-
-  # Deploys Firebase Hosting + the asia-south1 Cloud Function from main.
-  # Needs the repository secret FIREBASE_SERVICE_ACCOUNT (JSON key of a service
-  # account with the Firebase Admin role) and the variable FIREBASE_PROJECT_ID.
-  deploy:
-    needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.FIREBASE_PROJECT_ID != ''
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Install function dependencies
-        run: npm install --omit=dev --prefix firebase/functions
-      - name: Deploy to Firebase
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: |
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
-          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
-          npx --yes firebase-tools@15 deploy --only hosting,functions --project "${{ vars.FIREBASE_PROJECT_ID }}" --non-interactive --force

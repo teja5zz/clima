@@ -1,0 +1,61 @@
+# Deploys the website to Firebase (project climate-and-vastu-studio) on every merge to main.
+# Required secret: FIREBASE_SERVICE_ACCOUNT_CLIMATE_AND_VASTU_STUDIO (see website/README.md).
+# Optional variable: DEPLOY_FUNCTIONS = true once the project is on the Blaze plan, to also
+# deploy the /api/epw weather-file function. Without it, Hosting is deployed without that
+# rewrite and visitors upload weather files themselves.
+name: Deploy to Firebase Hosting on merge
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - "firebase/**"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/firebase-hosting-merge.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-deploy-live
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/website.yml
+
+  functions:
+    needs: test
+    if: vars.DEPLOY_FUNCTIONS == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci --omit=dev --prefix firebase/functions
+      - name: Deploy Cloud Functions
+        env:
+          SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CLIMATE_AND_VASTU_STUDIO }}
+        run: |
+          printf '%s' "$SA_KEY" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npx --yes firebase-tools@15 deploy --only functions --project climate-and-vastu-studio --non-interactive --force
+
+  hosting:
+    needs: [test, functions]
+    if: always() && needs.test.result == 'success' && needs.functions.result != 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use static-only config when functions are not deployed
+        if: vars.DEPLOY_FUNCTIONS != 'true'
+        run: node -e "const f='firebase.json',c=require('./'+f);delete c.hosting.rewrites;require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CLIMATE_AND_VASTU_STUDIO }}
+          channelId: live
+          projectId: climate-and-vastu-studio
