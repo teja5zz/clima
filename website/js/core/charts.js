@@ -522,13 +522,13 @@ window.App = window.App || {};
     });
     const m = ds.monthly;
     const yAll = m.map(function (r) { return tx(r.tMax); });
-    return { data: [{ x: m.map(function (r) { return r.rh; }), y: yAll, mode: "markers+text+lines", text: S.MONTHS,
+    return { data: [{ x: m.map(function (r) { return r.rhDay; }), y: yAll, mode: "markers+text+lines", text: S.MONTHS,
       textposition: "top center", textfont: { size: 10 }, line: { color: "rgba(80,80,80,0.35)", width: 1, dash: "dot" },
       marker: { size: 11, color: ds.nbc.months.map(function (z) { return Z[z].color; }), line: { color: "#fff", width: 1.5 } },
       hovertemplate: "%{text}: max %{y:.1f}" + App.tUnit() + ", RH %{x:.0f}%<extra></extra>" }],
       layout: { height: 440, shapes: shapes, annotations: ann, showlegend: false,
         title: { text: "Monthly climate signature (NBC 2016 classification)", x: 0.01, font: { size: 15 } },
-        xaxis: { title: "Mean monthly relative humidity (%)", range: [0, 100], gridcolor: GRID },
+        xaxis: { title: "Mean daytime relative humidity, 09–18 h (%)", range: [0, 100], gridcolor: GRID },
         yaxis: { title: "Mean monthly maximum temperature (" + App.tUnit() + ")", range: [tx(Math.min(0, S.min(m.map(function (r) { return r.tMax; })) - 3)), tx(Math.max(45, S.max(m.map(function (r) { return r.tMax; })) + 3))], gridcolor: GRID } } };
   };
 

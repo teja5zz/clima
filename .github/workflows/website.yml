@@ -1,12 +1,17 @@
-name: Website (Climate Studio India)
+name: Website (Climate & Vastu Studio)
 on:
   push:
     paths:
       - "website/**"
+      - "firebase/**"
+      - "firebase.json"
+      - ".firebaserc"
       - ".github/workflows/website.yml"
   pull_request:
     paths:
       - "website/**"
+      - "firebase/**"
+      - "firebase.json"
   workflow_dispatch:
 
 permissions:
@@ -19,28 +24,30 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-      - name: Science engine tests
+          node-version: "22"
+      - name: Science engine and Vastu planner tests
         run: node --test website/tests/science.test.js
+      - name: Cloud Function tests
+        run: node --test firebase/functions/test/proxy.test.js
 
-  # Publishes website/ to GitHub Pages from the main branch. To turn it on:
-  # Settings → Pages → Source: "GitHub Actions", then add the repository
-  # variable ENABLE_PAGES = true (Settings → Secrets and variables → Actions).
+  # Deploys Firebase Hosting + the asia-south1 Cloud Function from main.
+  # Needs the repository secret FIREBASE_SERVICE_ACCOUNT (JSON key of a service
+  # account with the Firebase Admin role) and the variable FIREBASE_PROJECT_ID.
   deploy:
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.ENABLE_PAGES == 'true'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.FIREBASE_PROJECT_ID != ''
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/setup-node@v4
         with:
-          path: website
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          node-version: "22"
+      - name: Install function dependencies
+        run: npm install --omit=dev --prefix firebase/functions
+      - name: Deploy to Firebase
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npx --yes firebase-tools@15 deploy --only hosting,functions --project "${{ vars.FIREBASE_PROJECT_ID }}" --non-interactive --force

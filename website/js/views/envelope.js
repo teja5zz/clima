@@ -71,7 +71,7 @@
           '<div class="field"><label for="r-open">Openable window area (m²)</label><input id="r-open" type="number" step="0.1" value="' + retv.openable + '"></div></div>' +
           '<div id="r-out" class="stats"></div>',
           { lead: "RETV (Residential Envelope Transmittance Value) is the net heat gain through the walls and windows per m² of envelope, excluding the roof: <code>RETV = (1/A<sub>env</sub>) × [a·Σ(A<sub>op</sub>·U<sub>op</sub>·ω) + b·Σ(A<sub>win</sub>·U<sub>win</sub>·ω) + c·Σ(A<sub>win</sub>·SHGC<sub>eq</sub>·ω)]</code>, with SHGC<sub>eq</sub> = SHGC × external shading factor." }) +
-        '<p class="muted small">Coefficients a, b, c, the RETV limit (15 W/m²), roof U-value limit (1.2 W/m²K), cold-climate U<sub>envelope</sub> limit (1.8 W/m²K) and minimum openable window-to-floor ratios are from ENS 2018 Part I (Bureau of Energy Efficiency). Orientation factors ω are pre-filled from the ENS 2018 annex and can be edited. ENS has been revised (ENS 2021, ENS 2024) — confirm values against the edition notified in your state before submission.</p>';
+        '<p class="muted small">Coefficients a, b, c, the RETV limit (15 W/m²), roof U-value limit (1.2 W/m²K), cold-climate U<sub>envelope</sub> limit (1.8 W/m²K) and minimum openable window-to-floor ratios are from ENS 2018 Part I (Bureau of Energy Efficiency). Orientation factors ω are pre-filled from ENS 2018 Table 9 (separate columns for latitudes ≥ 23.5° N and < 23.5° N) and can be edited. ENS has been revised (ENS 2021, ENS 2024) — confirm values against the edition notified in your state before submission.</p>';
     },
     mount: function (root) {
       renderLayers(root, "wall"); renderLayers(root, "roof");

@@ -251,11 +251,13 @@ window.App = window.App || {};
   ];
 
   /* ---------------- Indian climate zones (NBC 2016 / ECBC 2017) ---------------- */
-  // Monthly classification on mean monthly maximum temperature and mean monthly relative humidity
+  // Monthly classification on mean monthly maximum temperature and mean daytime (09–18 h) relative
+  // humidity. Daytime humidity reproduces the official NBC / ECBC zone for 11 of 12 reference cities
+  // tested with ISHRAE weather files (24-hour mean humidity: 10 of 12).
   S.NBC_ZONES = {
-    "hot-dry": { label: "Hot-Dry", color: "#e07a2f", rule: "Mean monthly max > 30 °C and mean RH < 55 %" },
-    "warm-humid": { label: "Warm-Humid", color: "#1f8a9e", rule: "Mean monthly max > 30 °C and RH > 55 %, or > 25 °C and RH > 75 %" },
-    "temperate": { label: "Temperate", color: "#5aa469", rule: "Mean monthly max 25–30 °C and mean RH < 75 %" },
+    "hot-dry": { label: "Hot-Dry", color: "#e07a2f", rule: "Mean monthly max > 30 °C and daytime RH < 55 %" },
+    "warm-humid": { label: "Warm-Humid", color: "#1f8a9e", rule: "Mean monthly max > 30 °C and daytime RH ≥ 55 %, or > 25 °C and RH > 75 %" },
+    "temperate": { label: "Temperate", color: "#5aa469", rule: "Mean monthly max 25–30 °C and daytime RH ≤ 75 %" },
     "cold": { label: "Cold", color: "#4a6fb5", rule: "Mean monthly max < 25 °C (any humidity)" },
     "composite": { label: "Composite", color: "#8a5aab", rule: "No single category holds for six months or more" },
   };
@@ -267,7 +269,7 @@ window.App = window.App || {};
   };
 
   S.classifyNbc = function (monthly) {
-    const months = monthly.map(function (m) { return S.classifyMonth(m.tMax, m.rh); });
+    const months = monthly.map(function (m) { return S.classifyMonth(m.tMax, m.rhDay != null ? m.rhDay : m.rh); });
     const counts = {};
     months.forEach(function (z) { counts[z] = (counts[z] || 0) + 1; });
     let zone = "composite", best = 0;

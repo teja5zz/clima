@@ -191,16 +191,18 @@ window.App = window.App || {};
     // monthly statistics
     const monthly = [];
     for (let mo = 1; mo <= 12; mo++) {
-      const dayMax = [], dayMin = [], rh = [], ghi = [], dbt = [], ws = [];
+      const dayMax = [], dayMin = [], rh = [], rhDay = [], ghi = [], dbt = [], ws = [];
       for (let day = 0; day < 365; day++) {
         if (d.month[day * 24] !== mo) continue;
         dayMax.push(daily.max[day]); dayMin.push(daily.min[day]); rh.push(daily.rhMean[day]);
         let g = 0;
         for (let h = 0; h < 24; h++) { g += d.glob_hor_rad[day * 24 + h]; dbt.push(d.DBT[day * 24 + h]); ws.push(d.wind_speed[day * 24 + h]); }
+        // daytime humidity: hourly records ending 10:00–18:00 local time (09–18 h)
+        for (let h = 9; h < 18; h++) rhDay.push(d.RH[day * 24 + h]);
         ghi.push(g);
       }
       monthly.push({
-        month: mo, tMax: S.mean(dayMax), tMin: S.mean(dayMin), tMean: S.mean(dbt), rh: S.mean(rh),
+        month: mo, tMax: S.mean(dayMax), tMin: S.mean(dayMin), tMean: S.mean(dbt), rh: S.mean(rh), rhDay: S.mean(rhDay),
         ghiDaily: S.mean(ghi) / 1000, wind: S.mean(ws), absMax: S.max(dayMax), absMin: S.min(dayMin),
         precip: null,
       });
@@ -229,17 +231,37 @@ window.App = window.App || {};
     return App.parseEpw(new TextDecoder("utf-8").decode(bytes), name);
   };
 
+  // Weather repositories that do not send CORS headers: always go through the site proxy.
+  const NO_CORS_HOSTS = ["climate.onebuilding.org", "energyplus-weather.s3.amazonaws.com", "energyplus.net", "www.energyplus.net"];
+
   App.readEpwFromUrl = async function (url) {
+    const abs = new URL(url, location.href);
+    const proxy = (window.SITE && window.SITE.epwProxy) || "";
+    const viaProxy = proxy && NO_CORS_HOSTS.indexOf(abs.hostname) >= 0;
     let res;
     try {
-      res = await fetch(url);
+      res = await fetch(viaProxy ? proxy + "?url=" + encodeURIComponent(abs.href) : abs.href);
     } catch (e) {
-      throw new Error("The browser could not download this file (the server probably blocks cross-site downloads). " +
-        "Download it to your computer and drop it in the upload box instead.");
+      if (!viaProxy && proxy && abs.origin !== location.origin) {
+        try { res = await fetch(proxy + "?url=" + encodeURIComponent(abs.href)); } catch (e2) { res = null; }
+      }
+      if (!res) {
+        throw new Error("The browser could not download this file (the server blocks cross-site downloads). " +
+          "Download it to your computer and drop it in the upload box instead.");
+      }
     }
-    if (!res.ok) throw new Error("Download failed (HTTP " + res.status + ").");
+    if (!res.ok) {
+      let msg = "Download failed (HTTP " + res.status + ").";
+      try { const j = await res.json(); if (j.error) msg = j.error; } catch (e) { /* not JSON */ }
+      if (viaProxy && (res.status === 404 && !/weather file/i.test(msg))) {
+        msg = "The weather-file service is not available on this host. Download the file and drop it in the upload box.";
+      }
+      throw new Error(msg);
+    }
     const buf = await res.arrayBuffer();
-    return App.readEpwFromBuffer(buf, decodeURIComponent(url.split("/").pop().split("?")[0]));
+    const ds = await App.readEpwFromBuffer(buf, decodeURIComponent(abs.pathname.split("/").pop()));
+    ds.meta.sourceUrl = abs.origin === location.origin ? null : abs.href;
+    return ds;
   };
 
   /* ---------------- CSV export ---------------- */

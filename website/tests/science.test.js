@@ -7,7 +7,7 @@ const path = require("path");
 const vm = require("vm");
 
 global.window = global;
-for (const f of ["core/utci-poly.js", "core/science.js", "core/variables.js", "core/epw.js"]) {
+for (const f of ["core/utci-poly.js", "core/science.js", "core/variables.js", "core/epw.js", "core/siting.js", "data/vastu.js"]) {
   vm.runInThisContext(fs.readFileSync(path.join(__dirname, "..", "js", f), "utf8"), { filename: f });
 }
 const S = global.App.S;
@@ -54,4 +54,36 @@ test("EPW parsing of the repository sample file", () => {
   assert.ok(Math.abs(ds.meta.lat - 44.5308) < 1e-6);
   assert.strictEqual(ds.monthly.length, 12);
   assert.ok(ds.d.utci_Sun_Wind.every(Number.isFinite));
+});
+
+test("Vastu scores follow the wheel's quick reference", () => {
+  const A = global.App;
+  const room = (id) => A.VASTU_ROOMS.find((r) => r.id === id);
+  assert.strictEqual(A.vastuScore(room("kitchen"), "SE"), 1);
+  assert.strictEqual(A.vastuScore(room("kitchen"), "NW"), 0.65);
+  assert.strictEqual(A.vastuScore(room("kitchen"), "NE"), 0);
+  assert.strictEqual(A.vastuVerdict(room("pooja"), "NE"), "Preferred");
+  assert.strictEqual(A.VASTU_ZONES.length, 8);
+});
+
+test("siting metrics, science scores and room assignment", () => {
+  const A = global.App;
+  const epw = fs.readFileSync(path.join(__dirname, "..", "..", "tests", "python", "ITA_ER_Bologna-Marconi.AP.161400_TMYx.2004-2018.epw"), "utf8");
+  const ds = A.parseEpw(epw, "sample.epw");
+  const m = A.siteMetrics(ds);
+  // in the northern hemisphere, the north façade gets the least afternoon sun and south panels yield most
+  const k = (d) => A.DIRS8.indexOf(d);
+  assert.ok(m.raw.pmHotSun[k("N")] < m.raw.pmHotSun[k("SW")]);
+  assert.strictEqual(m.raw.roofSolar.indexOf(Math.max(...m.raw.roofSolar)), k("S"));
+  assert.ok(m.raw.amSun[k("E")] > m.raw.amSun[k("W")]);
+  for (const r of A.VASTU_ROOMS) {
+    const sc = A.scienceScores(m, r.sci);
+    if (!sc) continue;
+    assert.strictEqual(sc.score.length, 8);
+    sc.score.forEach((v) => assert.ok(v >= 0 && v <= 1));
+  }
+  const layout = A.assignRooms(A.VASTU_ROOMS, (r, i) => A.vastuScore(r, A.VASTU_ZONES[i].id));
+  const placed = Object.values(layout).flat();
+  assert.strictEqual(placed.length, A.VASTU_ROOMS.length);
+  Object.values(layout).forEach((list) => assert.ok(list.length <= Math.ceil(A.VASTU_ROOMS.length / 8)));
 });

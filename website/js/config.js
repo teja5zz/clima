@@ -1,16 +1,28 @@
 /* ============================================================
-   BRAND SETTINGS — edit this file to put your company on the site.
+   BRAND SETTINGS — edit this file to change the company details.
    Every page, title, footer and export picks these values up.
    ============================================================ */
 window.BRAND = {
-  company: "Your Company",              // legal / trading name
-  product: "Climate Studio India",      // name of this web tool
-  shortMark: "YC",                      // 1–3 letters shown in the logo badge
-  tagline: "Climate-responsive design intelligence for Indian buildings",
-  website: "",                          // e.g. "https://www.yourcompany.in"
-  email: "",                            // e.g. "hello@yourcompany.in"
-  phone: "",                            // e.g. "+91 98xxx xxxxx"
-  address: "",                          // e.g. "Pune, Maharashtra, India"
-  accent: "#c2410c",                    // primary brand colour (any CSS colour)
+  company: "Tejas Constructions",
+  product: "Climate & Vastu Studio",
+  owner: "Tejas P R, BE, MS — Chartered Structural Engineer · Proprietor",
+  shortMark: "TC",                       // shown only if the logo image is missing
+  logo: "img/logo-tc.png",
+  tagline: "Science-backed, Vastu-aware design decisions for Indian buildings",
+  website: "https://www.tejas-constructions.in",
+  email: "info@tejas-constructions.in",
+  phone: "+91 81975 17555",
+  address: "#345, 14th Main, 5th Cross, First floor, Saraswathipuram, Mysore – 570009",
+  services: ["Structural Design", "Turnkey Projects", "Joint Ventures", "Construction Services", "Project Estimation"],
+  motto: "Right orientation · Better planning · Harmonious living",
+  accent: "#e8801a",                     // brand orange (text-safe shade of the logo orange)
+  ink: "#1f2a44",                        // brand navy
   year: new Date().getFullYear(),
+};
+
+/* Site services. epwProxy is the Firebase Cloud Function (see firebase.json) that
+   downloads weather files for the browser; set it to "" on hosts without it. */
+window.SITE = {
+  epwProxy: "/api/epw",
+  stationCatalogue: "data/india-stations.json",
 };

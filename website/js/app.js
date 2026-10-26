@@ -9,7 +9,7 @@ window.App = window.App || {};
 
   App.NAV = [
     { group: "Start", items: [
-      { id: "home", label: "Home & weather data", icon: "◎" },
+      { id: "home", label: "Home & choose location", icon: "◎" },
     ] },
     { group: "Climate analysis", items: [
       { id: "summary", label: "Climate summary", icon: "▤", needsData: true },
@@ -20,6 +20,7 @@ window.App = window.App || {};
       { id: "explorer", label: "Data explorer", icon: "⌕", needsData: true },
     ] },
     { group: "Design for India", items: [
+      { id: "vastu", label: "Vastu × Science planner", icon: "✷" },
       { id: "india", label: "Climate zone & IMAC comfort", icon: "⌂", needsData: true },
       { id: "strategies", label: "Design strategy advisor", icon: "✦", needsData: true },
       { id: "ventilation", label: "Natural ventilation", icon: "⇋", needsData: true },
@@ -114,6 +115,7 @@ window.App = window.App || {};
     App.state.ds = ds;
     try { sessionStorage.setItem("csi-last", ds.meta.city); } catch (e) { /* storage unavailable */ }
     App.renderLocationBar();
+    App.syncShareUrl();
     ds.warnings.forEach(function (w) { App.toast(w, "warn"); });
     App.toast("Loaded " + ds.meta.city + " — " + S.NBC_ZONES[ds.nbc.zone].label + " climate (NBC 2016).", "ok");
     App.updateNav();
@@ -131,15 +133,30 @@ window.App = window.App || {};
     } finally { App.busy(false); }
   };
 
-  App.loadUrl = async function (url) {
+  App.loadUrl = async function (url, opts) {
+    opts = opts || {};
     App.busy(true, "Downloading weather file…");
     try {
       const ds = await App.readEpwFromUrl(url);
       App.setDataset(ds);
-      location.hash = "#/summary";
+      if (!opts.stay) location.hash = "#/" + (opts.view || "summary");
+      else App.route();
     } catch (e) {
       App.toast(e.message || String(e), "err");
     } finally { App.busy(false); }
+  };
+
+  // Keep ?epw=<url> in the address bar so the analysis can be shared as a link.
+  App.syncShareUrl = function () {
+    const ds = App.state.ds;
+    const params = new URLSearchParams(location.search);
+    if (ds && ds.meta.sourceUrl) params.set("epw", ds.meta.sourceUrl); else params.delete("epw");
+    const qs = params.toString();
+    history.replaceState(null, "", location.pathname + (qs ? "?" + qs : "") + location.hash);
+  };
+
+  App.shareLink = function () {
+    return location.origin + location.pathname + location.search + location.hash;
   };
 
   App.busy = function (on, msg) {
@@ -207,13 +224,18 @@ window.App = window.App || {};
   App.applyBrand = function () {
     const b = window.BRAND;
     document.documentElement.style.setProperty("--brand", b.accent || "#c2410c");
+    if (b.ink) document.documentElement.style.setProperty("--navy", b.ink);
+    const logo = App.$("#brand-logo");
+    if (b.logo) { logo.src = b.logo; logo.alt = b.company + " logo"; logo.onerror = function () { logo.hidden = true; App.$("#brand-mark").hidden = false; }; }
+    else { logo.hidden = true; App.$("#brand-mark").hidden = false; }
+    App.$("#foot-services").innerHTML = (b.services || []).map(function (x) { return "<li>" + App.esc(x) + "</li>"; }).join("");
     App.$$("[data-brand]").forEach(function (el) { el.textContent = b[el.dataset.brand] || ""; });
     const contact = [];
-    if (b.website) contact.push('<a href="' + App.esc(b.website) + '" rel="noopener">' + App.esc(b.website.replace(/^https?:\/\//, "")) + "</a>");
+    if (b.phone) contact.push('<a href="tel:' + App.esc(b.phone.replace(/\s+/g, "")) + '">' + App.esc(b.phone) + "</a>");
     if (b.email) contact.push('<a href="mailto:' + App.esc(b.email) + '">' + App.esc(b.email) + "</a>");
-    if (b.phone) contact.push(App.esc(b.phone));
+    if (b.website) contact.push('<a href="' + App.esc(b.website) + '" target="_blank" rel="noopener">' + App.esc(b.website.replace(/^https?:\/\//, "")) + "</a>");
     if (b.address) contact.push(App.esc(b.address));
-    App.$("#foot-contact").innerHTML = contact.join(" · ");
+    App.$("#foot-contact").innerHTML = contact.map(function (c) { return "<div>" + c + "</div>"; }).join("");
   };
 
   /* ---------- boot ---------- */
@@ -239,5 +261,7 @@ window.App = window.App || {};
     });
     window.addEventListener("hashchange", App.route);
     App.route();
+    const shared = new URLSearchParams(location.search).get("epw");
+    if (shared) App.loadUrl(shared, { stay: true });
   });
 })(window.App);
