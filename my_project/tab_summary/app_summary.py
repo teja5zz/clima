@@ -1,9 +1,9 @@
 import dash
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
-import requests
 from dash.exceptions import PreventUpdate
 from dash_extensions.enrich import dcc, html, Output, Input, State
+from kgcpy import lookupCZ
 
 from app import app
 from my_project.extract_df import get_data
@@ -17,6 +17,41 @@ from my_project.utils import (
     title_with_tooltip,
     title_with_link,
 )
+
+# Köppen–Geiger zone descriptions (as used by the upstream CBE Clima Tool)
+KG_DESCRIPTIONS = {
+    "Af": "Tropical rainforest",
+    "Am": "Tropical monsoon",
+    "Aw": "Tropical savanna, dry winter",
+    "As": "Tropical savanna, dry summer",
+    "BWh": "Hot desert",
+    "BWk": "Cold desert",
+    "BSh": "Hot semi-arid steppe",
+    "BSk": "Cold semi-arid steppe",
+    "Csa": "Hot-summer Mediterranean",
+    "Csb": "Warm-summer Mediterranean",
+    "Csc": "Cold-summer Mediterranean",
+    "Cwa": "Monsoon-influenced humid subtropical",
+    "Cwb": "Subtropical highland",
+    "Cwc": "Cold subtropical highland",
+    "Cfa": "Humid subtropical, no dry season",
+    "Cfb": "Temperate oceanic",
+    "Cfc": "Subpolar oceanic",
+    "Dsa": "Hot-summer continental",
+    "Dsb": "Warm-summer continental",
+    "Dsc": "Subarctic",
+    "Dsd": "Extremely cold subarctic",
+    "Dwa": "Monsoon-influenced hot-summer continental",
+    "Dwb": "Monsoon-influenced warm-summer continental",
+    "Dwc": "Monsoon-influenced subarctic",
+    "Dwd": "Monsoon-influenced extremely cold subarctic",
+    "Dfa": "Hot-summer humid continental",
+    "Dfb": "Warm-summer humid continental",
+    "Dfc": "Subarctic boreal",
+    "Dfd": "Extremely cold subarctic boreal",
+    "ET": "Tundra",
+    "EF": "Ice cap",
+}
 
 
 def layout_summary(si_ip):
@@ -211,21 +246,15 @@ def update_location_info(ts, df, meta, si_ip):
         start, stop = meta["period"].split("-")
         period = f"This file is based on data collected between {start} and {stop}"
 
-    r = requests.get(
-        f"http://climateapi.scottpinkelman.com/api/v1/location/{meta['lat']}/{meta['lon']}"
-    )
-
+    # offline lookup: the climateapi.scottpinkelman.com service is no longer available
     climate_text = ""
-    if r.status_code == 200:
-        try:
-            climate_zone = r.json()["return_values"][0]["koppen_geiger_zone"]
-            zone_description = r.json()["return_values"][0]["zone_description"]
-
-            climate_text = (
-                f"Köppen–Geiger climate zone: {climate_zone}. {zone_description}."
-            )
-        except KeyError:
-            pass
+    try:
+        zone = lookupCZ(float(meta["lat"]), float(meta["lon"]))
+        description = KG_DESCRIPTIONS.get(zone, "")
+        if zone and description:
+            climate_text = f"Köppen–Geiger climate zone: {zone}. {description}."
+    except Exception:
+        pass
 
     # global horizontal irradiance
     # Note that the value is divided by 1000, so a corresponding change is made in the unit:

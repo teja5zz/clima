@@ -284,3 +284,6 @@ GitHub.sublime-settings
 .firebase/
 firebase-debug.log
 firebase/functions/node_modules/
+
+# Dash server-side cache
+file_system_backend/
