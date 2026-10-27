@@ -212,6 +212,8 @@ window.App = window.App || {};
       main.innerHTML = view.html();
       if (view.mount) view.mount(main);
     }
+    // full-screen tools (the planner) hide the site navigation and footer
+    document.body.classList.toggle("studio", !!(view.studio && !(item && item.needsData && !App.state.ds)));
     document.title = (item ? item.label + " · " : "") + (window.BRAND.product || "") + " — " + (window.BRAND.company || "");
     App.updateNav();
     document.body.classList.remove("nav-open");
