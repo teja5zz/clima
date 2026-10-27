@@ -4,7 +4,7 @@
   const S = App.S;
 
   const TOOLS = [
-    ["vastu", "Vastu × Science planner", "Place every room using your Vastu wheel and this site's real sun, heat and wind, with a rotatable wheel over your own plan."],
+    ["vastu", "Vastu × Science planner", "Draw your plot, pick 1–4 BHK rooms and get a layout placed by Vastu and this site's real sun, heat and wind — then drag to refine with live scores and print a report."],
     ["summary", "Climate summary", "Location, monthly statistics, degree days and climate profiles at a glance."],
     ["india", "Climate zone & IMAC comfort", "Automatic NBC 2016 / ECBC climate-zone classification and the India Model for Adaptive Comfort."],
     ["strategies", "Design strategy advisor", "Passive design recommendations ranked for your site's climate data."],

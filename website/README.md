@@ -14,7 +14,7 @@ All company details live in **`js/config.js`**: name, logo, tagline, phone, emai
 | Page | What it does |
 | --- | --- |
 | Home & choose location | Search 405 Indian weather stations (Climate.OneBuilding.org TMYx, ISHRAE, IWEC) by city, district or state, or use "Near me", then load one with a click. You can also upload an EPW/ZIP or paste a link |
-| **Vastu × Science planner** | The Tejas Constructions Vastu Wheel, rotatable over your own plan image, with sun path, afternoon façade heat and seasonal wind overlays. Every room gets a Vastu score and a climate score with reasons, plus a blended suggested layout and conflict-resolution advice |
+| **Vastu × Science planner** | A guided four-step workspace (Site → Rooms → Arrange → Report). Enter the plot size, facing and setbacks, pick a house type (1–4 BHK) or individual rooms, and auto-arrange them using the Tejas Constructions Vastu Wheel and the site's real sun, heat and breeze. Drag, resize, rotate and nudge rooms with live Vastu and climate scores, see the best places for each room, and fix flagged problems (overlaps, setbacks, NBC minimum sizes, windowless rooms, avoid-zones). It has undo/redo, autosave, share links, plan files, an SVG drawing export and a printable report |
 | Climate summary | Location details, headline numbers, a monthly table, heating/cooling degree days, monthly box plots and CSV export |
 | Temperature & humidity | Annual band chart with IMAC (NV/MM) or ASHRAE 55 adaptive bands, daily profiles, heatmap and statistics |
 | Sun & clouds | Polar and Cartesian sun paths coloured by any variable, monthly radiation profiles, sky cover and heatmaps |
@@ -106,14 +106,15 @@ still upload files they have downloaded themselves.
 ## Tests
 
 ```bash
-node --test website/tests/science.test.js          # science engine + Vastu planner
+node --test website/tests/science.test.js          # science engine + Vastu plan engine
 node --test firebase/functions/test/proxy.test.js  # Cloud Function security rules
 python3 website/tools/build_station_catalogue.py   # rebuild data/india-stations.json
 ```
 
 The tests check UTCI, SolarCal and solar position against reference values from pythermalcomfort and pvlib. They also
-cover the NBC classifier, the IMAC equations, EPW parsing, the Vastu scores, the climate metrics for each direction and
-the room assignment.
+cover the NBC classifier, the IMAC equations, EPW parsing, the Vastu scores, the climate metrics for each direction, and
+the plan engine: zone geometry for every facing, auto-arrangement of every house type without errors, the plan checks and
+share-link round trips.
 
 The NBC/ECBC classifier uses each month's mean maximum temperature and mean daytime (09–18 h) humidity. On ISHRAE
 weather files for 12 cities with known code zones, it reproduced the official zone for 11; Jaipur is the borderline miss.
