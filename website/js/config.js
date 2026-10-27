@@ -20,9 +20,11 @@ window.BRAND = {
   year: new Date().getFullYear(),
 };
 
-/* Site services. epwProxy is the Firebase Cloud Function (see firebase.json) that
-   downloads weather files for the browser; set it to "" on hosts without it. */
+/* Site services. epwMirror is the folder of station weather files copied onto the site
+   at deploy time (tools/mirror_epw.py). epwProxy is the optional Firebase Cloud Function
+   (see firebase.json) used for files that are not mirrored; set it to "" without it. */
 window.SITE = {
+  epwMirror: "epw/",
   epwProxy: "/api/epw",
   stationCatalogue: "data/india-stations.json",
 };

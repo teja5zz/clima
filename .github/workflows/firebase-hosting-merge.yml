@@ -1,8 +1,8 @@
 # Deploys the website to Firebase (project climate-and-vastu-studio) on every merge to main.
 # Required secret: FIREBASE_SERVICE_ACCOUNT_CLIMATE_AND_VASTU_STUDIO (see website/README.md).
 # Optional variable: DEPLOY_FUNCTIONS = true once the project is on the Blaze plan, to also
-# deploy the /api/epw weather-file function. Without it, Hosting is deployed without that
-# rewrite and visitors upload weather files themselves.
+# deploy the /api/epw weather-file function. Either way, every station's weather file is
+# mirrored onto Hosting (website/tools/mirror_epw.py), so one-click loading works on Spark too.
 name: Deploy to Firebase Hosting on merge
 on:
   push:
@@ -50,6 +50,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Restore mirrored weather files
+        uses: actions/cache@v4
+        with:
+          path: website/epw
+          key: epw-mirror-${{ hashFiles('website/data/india-stations.json', 'website/tools/mirror_epw.py') }}
+          restore-keys: epw-mirror-
+      - name: Mirror station weather files onto the site
+        run: python3 website/tools/mirror_epw.py
       - name: Use static-only config when functions are not deployed
         if: vars.DEPLOY_FUNCTIONS != 'true'
         run: node -e "const f='firebase.json',c=require('./'+f);delete c.hosting.rewrites;require('fs').writeFileSync(f,JSON.stringify(c,null,2))"

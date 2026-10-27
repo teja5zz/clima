@@ -71,8 +71,8 @@ firebase emulators:start --only hosting,functions --project demo-climate-vastu
      **Artifact Registry Administrator** roles. If a deploy reports a missing permission, add the role it names.
    - Add the repository **variable** `DEPLOY_FUNCTIONS` = `true` (Settings → Secrets and variables → Actions → Variables).
 
-   Without this step the site is deployed with Hosting only. Every tool still works, and visitors upload weather
-   files they downloaded themselves; the station finder links to each file.
+   This step is not needed for one-click loading: the deploy workflows copy every station's weather file onto
+   Hosting (see below). The function only adds a fallback for files that could not be mirrored.
 
 3. Merge the website branch into `main`. The live site appears at <https://climate-and-vastu-studio.web.app>.
    You can also add `tools.tejas-constructions.in` under Firebase → Hosting → Add custom domain.
@@ -91,6 +91,14 @@ firebase deploy --only hosting                # Spark plan: first remove "rewrit
 `js/config.js` holds the Firebase web-app config, which is public by design. Google Analytics for Firebase only loads
 after a visitor presses **Allow** in the consent banner. Advertising features and Google signals are off, and weather
 files, plans and inputs are never sent. Set `FIREBASE.analytics` to `false` to remove analytics entirely.
+
+### Weather files on the site
+
+The weather repositories do not send CORS headers, so the browser cannot fetch their files directly. Before each
+deploy, the workflows run `website/tools/mirror_epw.py`, which downloads every file in `data/india-stations.json`
+(about 1,000 files from Climate.OneBuilding.org and the EnergyPlus S3 bucket), repacks each one to a zip holding only
+the `.epw` (about 0.2 MB) and writes them to `website/epw/` with an `index.json`. The browser loads a station from
+`epw/` when it is listed there. The folder is cached between workflow runs and is not committed to git (about 180 MB).
 
 ### What the Cloud Function does
 
