@@ -234,11 +234,11 @@ window.App = window.App || {};
     App.$("#foot-services").innerHTML = (b.services || []).map(function (x) { return "<li>" + App.esc(x) + "</li>"; }).join("");
     App.$$("[data-brand]").forEach(function (el) { el.textContent = b[el.dataset.brand] || ""; });
     const contact = [];
-    if (b.phone) contact.push('<a href="tel:' + App.esc(b.phone.replace(/\s+/g, "")) + '">' + App.esc(b.phone) + "</a>");
-    if (b.email) contact.push('<a href="mailto:' + App.esc(b.email) + '">' + App.esc(b.email) + "</a>");
-    if (b.website) contact.push('<a href="' + App.esc(b.website) + '" target="_blank" rel="noopener">' + App.esc(b.website.replace(/^https?:\/\//, "")) + "</a>");
-    if (b.address) contact.push(App.esc(b.address));
-    App.$("#foot-contact").innerHTML = contact.map(function (c) { return "<div>" + c + "</div>"; }).join("");
+    if (b.phone) contact.push(["☎", '<a href="tel:' + App.esc(b.phone.replace(/\s+/g, "")) + '">' + App.esc(b.phone) + "</a>", "Phone"]);
+    if (b.email) contact.push(["✉", '<a href="mailto:' + App.esc(b.email) + '">' + App.esc(b.email) + "</a>", "Email"]);
+    if (b.website) contact.push(["⌂", '<a href="' + App.esc(b.website) + '" target="_blank" rel="noopener">' + App.esc(b.website.replace(/^https?:\/\//, "")) + "</a>", "Website"]);
+    if (b.address) contact.push(["⌖", App.esc(b.address), "Address"]);
+    App.$("#foot-contact").innerHTML = contact.map(function (c) { return '<div><span class="foot-ic" aria-label="' + c[2] + '">' + c[0] + "</span><span>" + c[1] + "</span></div>"; }).join("");
   };
 
   /* ---------- boot ---------- */
