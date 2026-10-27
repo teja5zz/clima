@@ -287,3 +287,6 @@ firebase/functions/node_modules/
 
 # Dash server-side cache
 file_system_backend/
+
+# Weather files mirrored at deploy time (website/tools/mirror_epw.py)
+website/epw/

@@ -24,6 +24,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Restore mirrored weather files
+        uses: actions/cache@v4
+        with:
+          path: website/epw
+          key: epw-mirror-${{ hashFiles('website/data/india-stations.json', 'website/tools/mirror_epw.py') }}
+          restore-keys: epw-mirror-
+      - name: Mirror station weather files onto the site
+        run: python3 website/tools/mirror_epw.py
       - name: Use static-only config when functions are not deployed
         if: vars.DEPLOY_FUNCTIONS != 'true'
         run: node -e "const f='firebase.json',c=require('./'+f);delete c.hosting.rewrites;require('fs').writeFileSync(f,JSON.stringify(c,null,2))"

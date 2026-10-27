@@ -4,7 +4,7 @@
   const S = App.S;
 
   const TOOLS = [
-    ["vastu", "Vastu × Science planner", "Place every room using your Vastu wheel and this site's real sun, heat and wind, with a rotatable wheel over your own plan."],
+    ["vastu", "Vastu × Science planner", "Draw your plot, pick 1–4 BHK rooms and get a layout placed by Vastu and this site's real sun, heat and wind — then drag to refine with live scores and print a report."],
     ["summary", "Climate summary", "Location, monthly statistics, degree days and climate profiles at a glance."],
     ["india", "Climate zone & IMAC comfort", "Automatic NBC 2016 / ECBC climate-zone classification and the India Model for Adaptive Comfort."],
     ["strategies", "Design strategy advisor", "Passive design recommendations ranked for your site's climate data."],
@@ -25,10 +25,15 @@
 
   let stations = null, anchor = null, query = "", selected = null;
 
+  // When the site carries a weather-file mirror, offer only the files that were mirrored
+  // (the rest are broken upstream links) and drop stations left without any.
   App.loadStations = async function () {
     if (stations) return stations;
-    const res = await fetch(window.SITE.stationCatalogue);
-    stations = await res.json();
+    const got = await Promise.all([fetch(window.SITE.stationCatalogue).then(function (r) { return r.json(); }), App.epwMirror()]);
+    const list = got[0], mirror = got[1];
+    stations = !mirror.size ? list : list.map(function (s) {
+      return Object.assign({}, s, { f: s.f.filter(function (f) { return mirror.has(decodeURIComponent(new URL(f[1]).pathname.split("/").pop())); }) });
+    }).filter(function (s) { return s.f.length; });
     return stations;
   };
 

@@ -142,19 +142,4 @@ window.App = window.App || {};
     }
     return { score: score, why: why };
   };
-
-  // Greedy assignment of rooms to zones (at least 2 places per zone, more when needed; centre kept open).
-  App.assignRooms = function (rooms, scoreFn) {
-    const pairs = [];
-    rooms.forEach(function (r) { DIRS.forEach(function (z, k) { pairs.push({ r: r, z: z, k: k, s: scoreFn(r, k) }); }); });
-    pairs.sort(function (a, b) { return b.s - a.s; });
-    const limit = Math.max(2, Math.ceil(rooms.length / DIRS.length));
-    const used = {}, cap = {}, out = {};
-    pairs.forEach(function (p) {
-      if (used[p.r.id] || (cap[p.z] || 0) >= limit) return;
-      used[p.r.id] = true; cap[p.z] = (cap[p.z] || 0) + 1;
-      (out[p.z] = out[p.z] || []).push({ room: p.r, score: p.s });
-    });
-    return out;
-  };
 })(window.App);

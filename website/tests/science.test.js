@@ -7,7 +7,9 @@ const path = require("path");
 const vm = require("vm");
 
 global.window = global;
-for (const f of ["core/utci-poly.js", "core/science.js", "core/variables.js", "core/epw.js", "core/siting.js", "data/vastu.js"]) {
+global.btoa = (s) => Buffer.from(s, "binary").toString("base64");
+global.atob = (s) => Buffer.from(s, "base64").toString("binary");
+for (const f of ["core/utci-poly.js", "core/science.js", "core/variables.js", "core/epw.js", "core/siting.js", "data/vastu.js", "core/planner.js"]) {
   vm.runInThisContext(fs.readFileSync(path.join(__dirname, "..", "js", f), "utf8"), { filename: f });
 }
 const S = global.App.S;
@@ -63,14 +65,19 @@ test("Vastu scores follow the wheel's quick reference", () => {
   assert.strictEqual(A.vastuScore(room("kitchen"), "NW"), 0.65);
   assert.strictEqual(A.vastuScore(room("kitchen"), "NE"), 0);
   assert.strictEqual(A.vastuVerdict(room("pooja"), "NE"), "Preferred");
+  assert.strictEqual(A.vastuVerdict(room("kitchen"), "NW"), "Acceptable");
+  assert.strictEqual(A.vastuVerdict(room("toilets"), "C"), "Avoid");
   assert.strictEqual(A.VASTU_ZONES.length, 8);
 });
 
-test("siting metrics, science scores and room assignment", () => {
-  const A = global.App;
+function bologna() {
   const epw = fs.readFileSync(path.join(__dirname, "..", "..", "tests", "python", "ITA_ER_Bologna-Marconi.AP.161400_TMYx.2004-2018.epw"), "utf8");
-  const ds = A.parseEpw(epw, "sample.epw");
-  const m = A.siteMetrics(ds);
+  return global.App.siteMetrics(global.App.parseEpw(epw, "sample.epw"));
+}
+
+test("siting metrics and science scores", () => {
+  const A = global.App;
+  const m = bologna();
   // in the northern hemisphere, the north façade gets the least afternoon sun and south panels yield most
   const k = (d) => A.DIRS8.indexOf(d);
   assert.ok(m.raw.pmHotSun[k("N")] < m.raw.pmHotSun[k("SW")]);
@@ -82,8 +89,92 @@ test("siting metrics, science scores and room assignment", () => {
     assert.strictEqual(sc.score.length, 8);
     sc.score.forEach((v) => assert.ok(v >= 0 && v <= 1));
   }
-  const layout = A.assignRooms(A.VASTU_ROOMS, (r, i) => A.vastuScore(r, A.VASTU_ZONES[i].id));
-  const placed = Object.values(layout).flat();
-  assert.strictEqual(placed.length, A.VASTU_ROOMS.length);
-  Object.values(layout).forEach((list) => assert.ok(list.length <= Math.ceil(A.VASTU_ROOMS.length / 8)));
+});
+
+test("planner geometry: facing, zones and façades", () => {
+  const P = global.App.Plan;
+  const site = P.defaultSite(); // 40 × 60 ft, road side faces east
+  const { W, D } = site;
+  assert.strictEqual(P.zoneAt(site, W / 2, D - 0.1), "E"); // road edge = east
+  assert.strictEqual(P.zoneAt(site, W / 2, 0.1), "W");
+  assert.strictEqual(P.zoneAt(site, 0.1, D / 2), "S"); // with east at the bottom, south is on the left
+  assert.strictEqual(P.zoneAt(site, W - 0.1, D / 2), "N");
+  assert.strictEqual(P.zoneAt(site, W / 2, D / 2), "C");
+  assert.strictEqual(P.sideDir(site, "top"), P.DIRS.indexOf("W"));
+  for (const [facing, bottom] of [[0, "N"], [180, "S"], [270, "W"], [45, "NE"]]) {
+    assert.strictEqual(P.zoneAt({ ...site, facing }, W / 2, D - 0.1), bottom);
+  }
+  // fine-tune turns the road side to the exact bearing facing + fine
+  assert.strictEqual(P.azOfBearing({ ...site, facing: 90, fine: 20 }, 180), 110);
+  const b = P.buildable(site);
+  const fac = P.facades(site, { t: "master", x: b.x0, y: b.y0, w: 3, h: 3 }).map((f) => P.DIRS[f.k]).sort();
+  assert.deepStrictEqual(fac, ["S", "W"]);
+});
+
+test("auto-arrange gives valid plans for every house type and facing", () => {
+  const A = global.App, P = A.Plan, m = bologna();
+  for (const preset of A.VASTU_PRESETS) {
+    for (const facing of [0, 45, 90, 135, 180, 225, 270, 315]) {
+      const site = { ...P.defaultSite(), facing };
+      if (preset.id === "villa") { site.W = 50 * P.FT; site.D = 80 * P.FT; }
+      if (preset.id === "1bhk") { site.W = 30 * P.FT; site.D = 40 * P.FT; } // small plots use a 2 × 2 grid
+      const ctx = { site, metrics: m, weight: 0.5 };
+      const items = P.autoArrange(ctx, P.fromPreset(preset.id));
+      assert.strictEqual(items.length, preset.items.length);
+      const ev = P.evaluate(ctx, items);
+      const errors = ev.issues.filter((i) => i.sev === "error");
+      assert.deepStrictEqual(errors, [], preset.id + " facing " + facing);
+      if (preset.id !== "villa") assert.deepStrictEqual(ev.issues.filter((i) => i.sev === "warn"), [], preset.id + " facing " + facing);
+      assert.ok(ev.vastu > 0.7, preset.id + " facing " + facing + " vastu " + ev.vastu);
+      // the main entrance is always on the road side, and the kitchen is never in the north-east
+      const door = ev.scored.find((r) => r.it.t === "entrance");
+      assert.strictEqual(P.doorSide(site, door.it), "bottom");
+      assert.notStrictEqual(ev.scored.find((r) => r.it.t === "kitchen").s.zone, "NE");
+    }
+  }
+});
+
+test("plan checks catch overlaps, setbacks and a misplaced door", () => {
+  const P = global.App.Plan, site = P.defaultSite(), b = P.buildable(site);
+  const ctx = { site, metrics: null, weight: 1 };
+  const items = [
+    { uid: "a", t: "living", x: b.x0, y: b.y0, w: 4, h: 4 },
+    { uid: "b", t: "kitchen", x: b.x0 + 2, y: b.y0 + 2, w: 3, h: 3 },
+    { uid: "c", t: "toilets", x: 0, y: b.y0, w: 1.5, h: 1.5 },
+    { uid: "d", t: "entrance", x: b.x0 + 1, y: b.y0 },
+  ];
+  const ev = P.evaluate(ctx, items);
+  const has = (re) => ev.issues.some((i) => re.test(i.text));
+  assert.ok(has(/overlaps Kitchen/));
+  assert.ok(has(/Toilet.*setback/));
+  assert.ok(has(/entrance is not on a road side/));
+  assert.ok(has(/Toilet.*below the NBC/));
+  assert.strictEqual(ev.climate, null); // no weather file: Vastu only
+});
+
+test("squarified tiling fills the box without overlaps", () => {
+  const P = global.App.Plan;
+  const areas = [16, 11, 8.5, 4, 2.5];
+  const W = 5, H = 42 / 5;
+  const r = P.squarifyMin(areas.map((a) => a * (W * H) / 42), W, H, 1.5);
+  assert.strictEqual(r.length, areas.length);
+  for (let i = 0; i < r.length; i++) {
+    assert.ok(r[i].x >= -1e-9 && r[i].y >= -1e-9 && r[i].x + r[i].w <= W + 1e-9 && r[i].y + r[i].h <= H + 1e-9);
+    for (let j = i + 1; j < r.length; j++) assert.strictEqual(P.overlap(r[i], r[j]), 0);
+  }
+});
+
+test("plans survive a share link round trip", () => {
+  const P = global.App.Plan;
+  const state = { site: { ...P.defaultSite(), facing: 225, fine: -7, corner: "left" }, items: P.fromPreset("2bhk"), weight: 0.35 };
+  state.items[1].n = "Hall — ಹಾಲ್";
+  const back = P.deserialize(P.serialize(state));
+  assert.strictEqual(back.site.facing, 225);
+  assert.strictEqual(back.site.fine, -7);
+  assert.strictEqual(back.site.corner, "left");
+  assert.strictEqual(back.weight, 0.35);
+  assert.strictEqual(back.items.length, state.items.length);
+  assert.strictEqual(back.items[1].n, "Hall — ಹಾಲ್");
+  assert.throws(() => P.deserialize("not-a-plan"));
+  assert.throws(() => P.unpack({ v: 2, W: "x", D: 10, f: 0, sb: [0, 0, 0, 0], i: [] }));
 });

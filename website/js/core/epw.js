@@ -234,10 +234,36 @@ window.App = window.App || {};
   // Weather repositories that do not send CORS headers: always go through the site proxy.
   const NO_CORS_HOSTS = ["climate.onebuilding.org", "energyplus-weather.s3.amazonaws.com", "energyplus.net", "www.energyplus.net"];
 
+  // Names of the station files mirrored on this site (epw/index.json, built at deploy time
+  // by tools/mirror_epw.py). Empty when the site has no mirror.
+  let mirrorIndex = null;
+  App.epwMirror = async function () {
+    if (mirrorIndex) return mirrorIndex;
+    const base = window.SITE && window.SITE.epwMirror;
+    mirrorIndex = new Set();
+    if (base) {
+      try {
+        const r = await fetch(base + "index.json", { cache: "no-cache" });
+        if (r.ok) mirrorIndex = new Set(await r.json());
+      } catch (e) { /* no mirror on this host */ }
+    }
+    return mirrorIndex;
+  };
+
   App.readEpwFromUrl = async function (url) {
     const abs = new URL(url, location.href);
+    const name = decodeURIComponent(abs.pathname.split("/").pop());
+    const external = NO_CORS_HOSTS.indexOf(abs.hostname) >= 0;
+    if (external && (await App.epwMirror()).has(name)) {
+      const res = await fetch(window.SITE.epwMirror + encodeURIComponent(name));
+      if (res.ok) {
+        const ds = await App.readEpwFromBuffer(await res.arrayBuffer(), name);
+        ds.meta.sourceUrl = abs.href; // share links keep the original source
+        return ds;
+      }
+    }
     const proxy = (window.SITE && window.SITE.epwProxy) || "";
-    const viaProxy = proxy && NO_CORS_HOSTS.indexOf(abs.hostname) >= 0;
+    const viaProxy = proxy && external;
     let res;
     try {
       res = await fetch(viaProxy ? proxy + "?url=" + encodeURIComponent(abs.href) : abs.href);
@@ -254,12 +280,12 @@ window.App = window.App || {};
       let msg = "Download failed (HTTP " + res.status + ").";
       try { const j = await res.json(); if (j.error) msg = j.error; } catch (e) { /* not JSON */ }
       if (viaProxy && (res.status === 404 && !/weather file/i.test(msg))) {
-        msg = "The weather-file service is not available on this host. Download the file and drop it in the upload box.";
+        msg = "This weather file could not be fetched here. Use the ↓ link to download it, then drop it in the upload box.";
       }
       throw new Error(msg);
     }
     const buf = await res.arrayBuffer();
-    const ds = await App.readEpwFromBuffer(buf, decodeURIComponent(abs.pathname.split("/").pop()));
+    const ds = await App.readEpwFromBuffer(buf, name);
     ds.meta.sourceUrl = abs.origin === location.origin ? null : abs.href;
     return ds;
   };

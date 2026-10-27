@@ -23,29 +23,46 @@ window.App = window.App || {};
     { id: "NW", name: "North-West", deity: "Vayu", az: 315, element: "Air", theme: "Movement, guests, change", color: "#d3a9c4",
       uses: ["Guest bedroom", "Kids bedroom", "Toilets", "Movement"], avoid: "Pooja room, kitchen, heavy storage" },
   ];
-  App.VASTU_CENTRE = { id: "C", name: "Centre", deity: "Brahmasthan", element: "Space", color: "#e6e4ec",
+  App.VASTU_CENTRE = { id: "C", name: "Centre", deity: "Brahmasthan", az: null, element: "Space", theme: "Open, light, connecting", color: "#e6e4ec",
     uses: ["Open hall", "Courtyard", "Central passage"], avoid: "Toilets, kitchen, staircase, heavy columns, tanks or heavy furniture" };
 
-  // pref = preferred directions (first is ideal), alt = acceptable alternatives, avoid = discouraged.
-  // sci = which climate profile the science score uses (see views/vastu.js).
+  /* Placeable items.
+     kind: "room" (a rectangle on the plan), "door" (the main entrance, on an outside wall) or
+           "fixture" (a point: tanks, sump, septic).
+     pref = preferred zones (first is ideal), alt = acceptable, avoid = discouraged ("C" = Brahmasthan).
+     sci  = climate profile (core/siting.js); null where the climate has no bearing.
+     area = typical size in m²; nbc = indicative minimum area (m²) and width (m) after NBC 2016 Part 3.
+     habitable = needs an outside wall for windows. */
   App.VASTU_ROOMS = [
-    { id: "entrance", label: "Main entrance", pref: ["N", "E", "NE"], alt: [], avoid: ["SW"], sci: "entrance", def: true },
-    { id: "living", label: "Living room", pref: ["N", "E", "NE"], alt: [], avoid: ["SW"], sci: "living", def: true },
-    { id: "pooja", label: "Pooja room", pref: ["NE"], alt: ["E", "N"], avoid: ["S", "SW", "W", "NW", "SE"], sci: "pooja", def: true },
-    { id: "kitchen", label: "Kitchen", pref: ["SE"], alt: ["NW"], avoid: ["NE", "S", "W", "C"], sci: "kitchen", def: true },
-    { id: "dining", label: "Dining", pref: ["E", "W"], alt: [], avoid: [], sci: "dining", def: true },
-    { id: "master", label: "Master bedroom", pref: ["SW"], alt: ["S", "W"], avoid: ["SE", "NE"], sci: "bedroom", def: true },
-    { id: "children", label: "Children's bedroom", pref: ["W", "NW", "E"], alt: [], avoid: ["SE"], sci: "bedroom", def: true },
-    { id: "guest", label: "Guest bedroom", pref: ["NW"], alt: ["W"], avoid: ["SE"], sci: "bedroom", def: false },
-    { id: "study", label: "Study / home office", pref: ["E", "N", "NE"], alt: [], avoid: [], sci: "study", def: false },
-    { id: "toilets", label: "Toilets / bathrooms", pref: ["W", "NW"], alt: ["S"], avoid: ["NE", "C", "N", "SE"], sci: "buffer", def: true },
-    { id: "staircase", label: "Staircase", pref: ["S", "W", "SW"], alt: [], avoid: ["NE", "C"], sci: "buffer", def: true },
-    { id: "store", label: "Store / heavy storage", pref: ["SW", "S"], alt: ["W"], avoid: ["NE", "NW", "C"], sci: "buffer", def: false },
-    { id: "open", label: "Open space / garden", pref: ["NE", "N", "E"], alt: [], avoid: ["SW"], sci: "open", def: false },
-    { id: "ohtank", label: "Overhead water tank", pref: ["SW", "W"], alt: [], avoid: ["NE", "C"], sci: "roofshade", def: false },
-    { id: "ugtank", label: "Underground water tank / sump", pref: ["N", "NE"], alt: [], avoid: ["SE", "SW", "C"], sci: null, def: false },
-    { id: "septic", label: "Septic tank", pref: ["NW"], alt: [], avoid: ["N", "E", "NE", "C"], sci: null, def: false },
-    { id: "solar", label: "Solar panels (facing)", pref: ["S", "SW", "W"], alt: [], avoid: [], sci: "solar", def: false },
+    { id: "entrance", label: "Main entrance", short: "Entrance", kind: "door", pref: ["N", "E", "NE"], alt: [], avoid: ["SW"], sci: "entrance", color: "#1f2a44" },
+    { id: "living", label: "Living room", short: "Living", kind: "room", area: 16, nbc: [9.5, 2.4], habitable: true, pref: ["N", "E", "NE"], alt: ["C"], avoid: ["SW"], sci: "living", color: "#7fc6b5" },
+    { id: "dining", label: "Dining", short: "Dining", kind: "room", area: 10, pref: ["E", "W"], alt: ["C"], avoid: [], sci: "dining", color: "#a6d18f" },
+    { id: "kitchen", label: "Kitchen", short: "Kitchen", kind: "room", area: 8.5, nbc: [5.0, 1.8], habitable: true, pref: ["SE"], alt: ["NW"], avoid: ["NE", "S", "W", "C"], sci: "kitchen", color: "#f4d36b" },
+    { id: "pooja", label: "Pooja room", short: "Pooja", kind: "room", area: 2.5, pref: ["NE"], alt: ["E", "N"], avoid: ["S", "SW", "W", "NW", "SE"], sci: "pooja", color: "#f6c27a" },
+    { id: "master", label: "Master bedroom", short: "Master bed", kind: "room", area: 13.5, nbc: [9.5, 2.4], habitable: true, pref: ["SW"], alt: ["S", "W"], avoid: ["SE", "NE"], sci: "bedroom", color: "#c58b77" },
+    { id: "children", label: "Children's bedroom", short: "Kids bed", kind: "room", area: 11, nbc: [7.5, 2.1], habitable: true, pref: ["W", "NW", "E"], alt: [], avoid: ["SE"], sci: "bedroom", color: "#b19ad7" },
+    { id: "guest", label: "Guest bedroom", short: "Guest bed", kind: "room", area: 11, nbc: [7.5, 2.1], habitable: true, pref: ["NW"], alt: ["W"], avoid: ["SE"], sci: "bedroom", color: "#d3a9c4" },
+    { id: "study", label: "Study / home office", short: "Study", kind: "room", area: 8, nbc: [7.5, 2.1], habitable: true, pref: ["E", "N", "NE"], alt: [], avoid: [], sci: "study", color: "#a8cbe0" },
+    { id: "toilets", label: "Toilet / bathroom", short: "Toilet", kind: "room", area: 4, nbc: [2.8, 1.2], pref: ["W", "NW"], alt: ["S"], avoid: ["NE", "C", "N", "SE"], sci: "buffer", color: "#9fb4c7" },
+    { id: "staircase", label: "Staircase", short: "Stairs", kind: "room", area: 8, pref: ["S", "W", "SW"], alt: [], avoid: ["NE", "C"], sci: "buffer", color: "#b8a99a" },
+    { id: "store", label: "Store / heavy storage", short: "Store", kind: "room", area: 3.5, pref: ["SW", "S"], alt: ["W"], avoid: ["NE", "NW", "C"], sci: "buffer", color: "#a89f91" },
+    { id: "open", label: "Courtyard / open space", short: "Courtyard", kind: "room", area: 12, pref: ["NE", "N", "E"], alt: ["C"], avoid: ["SW"], sci: "open", color: "#cfe8c4" },
+    { id: "ohtank", label: "Overhead water tank", short: "OH tank", kind: "fixture", pref: ["SW", "W"], alt: [], avoid: ["NE", "C"], sci: "roofshade", color: "#4a6fb5" },
+    { id: "ugtank", label: "Underground sump", short: "Sump", kind: "fixture", pref: ["N", "NE"], alt: [], avoid: ["SE", "SW", "C"], sci: null, color: "#1c7ed6" },
+    { id: "septic", label: "Septic tank", short: "Septic", kind: "fixture", pref: ["NW"], alt: [], avoid: ["N", "E", "NE", "C"], sci: null, color: "#6b6156" },
+  ];
+  App.VASTU_ROOM = {};
+  App.VASTU_ROOMS.forEach(function (r) { App.VASTU_ROOM[r.id] = r; });
+
+  // Rooftop solar is a roof-tilt decision, not a room position; reported separately.
+  App.VASTU_SOLAR = { id: "solar", label: "Solar panels (facing)", pref: ["S", "SW", "W"], alt: [], avoid: [], sci: "solar" };
+
+  // Room programmes (house types) to start from.
+  App.VASTU_PRESETS = [
+    { id: "1bhk", label: "1 BHK", items: ["entrance", "living", "kitchen", "master", "toilets", "pooja", "ugtank", "ohtank"] },
+    { id: "2bhk", label: "2 BHK", items: ["entrance", "living", "dining", "kitchen", "pooja", "master", "children", "toilets", "toilets", "staircase", "ugtank", "ohtank"] },
+    { id: "3bhk", label: "3 BHK", items: ["entrance", "living", "dining", "kitchen", "pooja", "master", "children", "guest", "toilets", "toilets", "toilets", "staircase", "store", "ugtank", "ohtank"] },
+    { id: "villa", label: "4 BHK villa", items: ["entrance", "living", "dining", "kitchen", "pooja", "master", "children", "children", "guest", "study", "toilets", "toilets", "toilets", "toilets", "staircase", "store", "open", "ugtank", "ohtank", "septic"] },
   ];
 
   App.VASTU_NOTES = [
@@ -65,8 +82,11 @@ window.App = window.App || {};
   };
   App.vastuVerdict = function (room, zoneId) {
     if (room.pref.indexOf(zoneId) >= 0) return "Preferred";
-    if (room.alt.indexOf(zoneId) >= 0) return "Alternative";
+    if (room.alt.indexOf(zoneId) >= 0) return "Acceptable";
     if (room.avoid.indexOf(zoneId) >= 0) return "Avoid";
     return "Neutral";
+  };
+  App.zoneById = function (id) {
+    return id === "C" ? App.VASTU_CENTRE : App.VASTU_ZONES.find(function (z) { return z.id === id; });
   };
 })(window.App);
