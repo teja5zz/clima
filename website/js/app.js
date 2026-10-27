@@ -224,11 +224,11 @@ window.App = window.App || {};
   /* ---------- branding ---------- */
   App.applyBrand = function () {
     const b = window.BRAND;
-    document.documentElement.style.setProperty("--brand", b.accent || "#c2410c");
+    document.documentElement.style.setProperty("--brand", b.accent || "#2f7d4f");
     if (b.ink) document.documentElement.style.setProperty("--navy", b.ink);
     const logo = App.$("#brand-logo");
-    if (b.logo) { logo.src = b.logo; logo.alt = b.company + " logo"; logo.onerror = function () { logo.hidden = true; App.$("#brand-mark").hidden = false; }; }
-    else { logo.hidden = true; App.$("#brand-mark").hidden = false; }
+    if (b.wordmark) logo.src = b.wordmark;
+    logo.alt = b.company;
     App.$("#foot-services").innerHTML = (b.services || []).map(function (x) { return "<li>" + App.esc(x) + "</li>"; }).join("");
     App.$$("[data-brand]").forEach(function (el) { el.textContent = b[el.dataset.brand] || ""; });
     const contact = [];

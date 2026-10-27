@@ -20,7 +20,7 @@ window.App = window.App || {};
 
   Ch.baseLayout = function (extra) {
     return Object.assign({
-      font: { family: FONT, size: 12, color: "#2b2b2b" },
+      font: { family: FONT, size: 12, color: "#1b2620" },
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(0,0,0,0)",
       margin: { l: 56, r: 24, t: 40, b: 44 },

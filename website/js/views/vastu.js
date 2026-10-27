@@ -826,7 +826,7 @@
       case "step": st.step = +el.dataset.step; renderAll(); break;
       case "print": if (App.track) App.track("vastu_print"); window.print(); break;
       case "share": share(); break;
-      case "json": download("vastu-plan.json", JSON.stringify(Object.assign({ app: "Tejas Constructions Vastu × Science planner" }, P.pack(st)), null, 1), "application/json"); break;
+      case "json": download("vastu-plan.json", JSON.stringify(Object.assign({ app: "trikrt Vastu × Science planner" }, P.pack(st)), null, 1), "application/json"); break;
       case "svg": download("vastu-plan.svg", standaloneSvg(), "image/svg+xml"); break;
       case "import": App.$("#pl-import", root).click(); break;
     }
@@ -963,10 +963,10 @@
   function standaloneSvg() {
     const m = svgMarkup({ static: true });
     const css = ".pl-road{fill:#d9d4cc}.pl-roadtxt,.pl-zlabel,.pl-dim,.pl-rname,.pl-rdim,.pl-ftxt{text-anchor:middle;dominant-baseline:middle;font-family:sans-serif}.pl-roadtxt{fill:#555;font-weight:700;letter-spacing:.1em}" +
-      ".pl-plot{fill:#fff;stroke:#1f2a44;stroke-width:.12}.pl-zones polygon{fill-opacity:.28;stroke:#fff;stroke-width:.05}.pl-brahma{stroke:#8d86a0;stroke-width:.05}.pl-zlabel{fill:#1f2a44;font-weight:700;opacity:.55}" +
-      ".pl-build{fill:none;stroke:#1f2a44;stroke-width:.06;stroke-dasharray:.3 .2}.pl-dim{fill:#5e564c}.pl-item.room rect{stroke:#1f2a44;stroke-width:.08;fill-opacity:.9}.pl-rname{fill:#1f2a44;font-weight:700}.pl-rdim{fill:#3d3a4a}" +
-      ".pl-vdot.good{fill:#2f9e44}.pl-vdot.ok{fill:#f59f00}.pl-vdot.bad{fill:#e03131}.pl-doorline{stroke:#1f2a44}.pl-swing{fill:none;stroke:#1f2a44;stroke-width:.05}.pl-hit{fill:transparent}.pl-ftxt{fill:#1f2a44;font-weight:600}" +
-      ".pl-heat{fill:#e8590c}.pl-wind line{stroke:#1c7ed6}.pl-wind text{fill:#1c7ed6;text-anchor:middle;font-family:sans-serif}.pl-compass circle{fill:#fff;stroke:#1f2a44;stroke-width:.05}.pl-compass path{fill:#e8801a}.pl-compass text{text-anchor:middle;font-weight:700;fill:#1f2a44;font-family:sans-serif}";
+      ".pl-plot{fill:#fff;stroke:#173a2a;stroke-width:.12}.pl-zones polygon{fill-opacity:.28;stroke:#fff;stroke-width:.05}.pl-brahma{stroke:#8d86a0;stroke-width:.05}.pl-zlabel{fill:#173a2a;font-weight:700;opacity:.55}" +
+      ".pl-build{fill:none;stroke:#173a2a;stroke-width:.06;stroke-dasharray:.3 .2}.pl-dim{fill:#5e564c}.pl-item.room rect{stroke:#173a2a;stroke-width:.08;fill-opacity:.9}.pl-rname{fill:#173a2a;font-weight:700}.pl-rdim{fill:#3d3a4a}" +
+      ".pl-vdot.good{fill:#2f9e44}.pl-vdot.ok{fill:#f59f00}.pl-vdot.bad{fill:#e03131}.pl-doorline{stroke:#173a2a}.pl-swing{fill:none;stroke:#173a2a;stroke-width:.05}.pl-hit{fill:transparent}.pl-ftxt{fill:#173a2a;font-weight:600}" +
+      ".pl-heat{fill:#e8590c}.pl-wind line{stroke:#1c7ed6}.pl-wind text{fill:#1c7ed6;text-anchor:middle;font-family:sans-serif}.pl-compass circle{fill:#fff;stroke:#173a2a;stroke-width:.05}.pl-compass path{fill:#e0952c}.pl-compass text{text-anchor:middle;font-weight:700;fill:#173a2a;font-family:sans-serif}";
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + m.vb + '" width="1200" height="' + Math.round(1200 * m.vb.split(" ")[3] / m.vb.split(" ")[2]) + '"><style>' + css + "</style>" + m.body + "</svg>";
   }
 
