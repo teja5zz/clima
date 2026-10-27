@@ -14,7 +14,7 @@
 
   const st = {
     loaded: false, tab: ROOMS, site: null, items: [], weight: 0.5, name: "", sel: null, zoneInfo: null, touched: false,
-    show: { zones: true, climate: true, dims: true, shade: true, mat: true, vent: true, trees: true },
+    show: { zones: true, climate: true, dims: true, shade: true, mat: true, vent: true, trees: true, win: true },
     underlay: null, underlayOpacity: 0.5, underlayFit: "plot", trace: false, tool: null,
     hist: [], fut: [], locOpen: false,
     start: false, quick: { preset: "3bhk", W: 40, D: 60, facing: 90 },   // start screen
@@ -182,7 +182,7 @@
   function renderFloat() {
     const tog = function (k, label) { return '<button type="button" class="chip' + (st.show[k] ? " on" : "") + '" data-act="toggle" data-k="' + k + '" aria-pressed="' + st.show[k] + '">' + label + "</button>"; };
     App.$("#pl-layers", root).innerHTML = st.tab === CLIMATE && metrics
-      ? tog("shade", "Shading") + tog("mat", "Walls") + tog("vent", "Breeze") + tog("trees", "Planting") + tog("zones", "Zones")
+      ? tog("win", "Windows") + tog("vent", "Airflow") + tog("mat", "Walls") + tog("shade", "Shading") + tog("trees", "Planting") + tog("zones", "Zones")
       : tog("zones", "Vastu zones") + (metrics ? tog("climate", "Sun & wind") : "") + tog("dims", "Sizes");
     const z = Math.round(100 * zoomLevel());
     App.$("#pl-zoom", root).innerHTML = '<button type="button" data-act="zoom-out" aria-label="Zoom out" title="Zoom out (−)">−</button>' +
@@ -376,33 +376,56 @@
   function sideChip(x) {
     return '<span class="pl-sidehead"><span class="pl-zchip" style="--z:' + App.zoneById(x.dir).color + '">' + x.dirName + '</span><span class="tag heat-' + x.heat + '">' + HEAT[x.heat] + "</span></span>";
   }
+  const ROLE = { inlet: "inlet · breeze in", outlet: "outlet · breeze out", window: "window", high: "high window", vent: "ventilator" };
+  function winLine(w) {
+    return "<li><b>" + DIR_NAMES[w.dir] + " wall</b> · " + len(w.width) + " × " + len(w.height) + " · sill " + len(w.sill) + ' <span class="tag win-' + w.role + '">' + ROLE[w.role] + "</span></li>";
+  }
+  function roomClimate(sx, it) {
+    const rw = sx.roomWin[it.uid], fac = P.facades(st.site, it, null, sx.footprint);
+    let h = '<div class="pl-roomtips"><h3>Keeping this room cool</h3>';
+    if (rw && rw.list.length) h += '<ul class="pl-winlist">' + rw.list.map(winLine).join("") + "</ul>" +
+      '<p class="small muted">' + (rw.cross ? "✓ Cross-ventilated: openings on two walls." : "Openings on one wall only — add a ventilator above the door into the passage.") + "</p>";
+    else if (rw && rw.interior) h += '<p class="small">No outside wall: ventilate with a ventilator above the door, a jaali to the next room or a skylight.</p>';
+    fac.forEach(function (fc) {
+      const x = sx.sides.find(function (y) { return y.side === fc.side; });
+      h += '<p class="small">' + sideChip(x) + "<br><b>Wall:</b> " + App.esc(x.wall.build) + ". <b>Shade:</b> " + App.esc(x.shade.short) + (x.shade.kind === "none" ? "" : " mm") + ".</p>";
+    });
+    return h + "</div>";
+  }
   function panelClimate() {
-    let h = '<h2 class="pl-h">Climate strategies</h2>';
+    let h = '<h2 class="pl-h">Keep it cool</h2>';
     if (!metrics) {
-      return h + '<section class="pl-sec"><p>Pick your city to see shading, ventilation, materials and planting worked out from its weather data.</p>' + locBlock() + "</section>" + nextBtn("Next: report");
+      return h + '<section class="pl-sec"><p>Pick your city to get windows, wall thickness, roof insulation, shading, ventilation and planting worked out from its weather data.</p>' + locBlock() + "</section>" + nextBtn("Next: report");
     }
-    const sx = strategies(), it = find(st.sel);
-    h += '<section class="pl-sec"><p class="small muted">From the ' + App.esc(App.state.ds.meta.city) + ' weather file · ' + sx.zoneLabel + ' climate (NBC 2016). Drawn on the plan: walls coloured by heat, chajjas to scale, breeze in/out and planting.</p>' +
-      '<h3>Key moves</h3><ol class="pl-key">' + sx.key.map(function (k) { return "<li>" + App.esc(k) + "</li>"; }).join("") + "</ol></section>";
-    if (it && def(it).kind === "room") {
-      const fac = P.facades(st.site, it, null, fp()), d = def(it);
-      h += '<section class="pl-sec pl-roomtips"><h3><i class="sw" style="background:' + d.color + '"></i>' + App.esc(name(it)) + "</h3>" +
-        (fac.length ? fac.map(function (f) {
-          const x = sx.sides.find(function (y) { return y.side === f.side; });
-          return '<p class="small">' + sideChip(x) + "<br><b>Window:</b> " + App.esc(x.window) + " <b>Shade:</b> " + App.esc(x.shade.short) + " mm. <b>Wall:</b> " + App.esc(x.wall.short) + "." +
-            (x.windward ? " <b>Breeze inlet.</b>" : x.leeward ? " <b>Breeze outlet.</b>" : "") + "</p>";
-        }).join("") : '<p class="small">No outside wall: ventilate through a high ventilator, a jaali to the passage, or a skylight.</p>') + "</section>";
-    }
-    h += '<section class="pl-sec"><h3>Shading — each wall</h3><ul class="pl-slist">' + sx.sides.map(function (x) {
-      return "<li>" + sideChip(x) + "<span>" + App.esc(x.shade.text) + "</span></li>";
-    }).join("") + "</ul></section>";
-    h += '<section class="pl-sec"><h3>Materials</h3><ul class="pl-slist">' + sx.sides.map(function (x) {
-      return "<li>" + sideChip(x) + "<span><b>Wall:</b> " + App.esc(x.wall.text) + "<br><b>Windows:</b> " + App.esc(x.window) + "</span></li>";
-    }).join("") + '<li><span class="pl-zchip" style="--z:#ced4da">Roof</span><span>' + App.esc(sx.roof.text) + "</span></li></ul></section>";
-    h += '<section class="pl-sec"><h3>Ventilation</h3><ul class="tips small">' + sx.vent.tips.map(function (t) { return "<li>" + App.esc(t) + "</li>"; }).join("") + "</ul></section>";
-    h += '<section class="pl-sec"><h3>Planting & site</h3><ul class="pl-slist">' + sx.sides.map(function (x) {
-      return "<li>" + sideChip(x) + "<span>" + App.esc(x.plant.text) + "</span></li>";
-    }).join("") + "</ul><ul class=\"tips small\">" + sx.site.map(function (t) { return "<li>" + App.esc(t) + "</li>"; }).join("") + "</ul></section>";
+    const sx = strategies(), nm = {};
+    P.numbered(st.items).forEach(function (x) { nm[x.uid] = x.n || x.auto || App.VASTU_ROOM[x.t].label; });
+    const checks = sx.checks.filter(function (c) { return c.status !== "tip"; }), met = checks.filter(function (c) { return c.status === "done"; }).length;
+    const sec = function (title, body, open) { return '<details class="pl-sec pl-more"' + (open ? " open" : "") + "><summary>" + title + "</summary>" + body + "</details>"; };
+    h += '<p class="small muted">From the ' + App.esc(App.state.ds.meta.city) + " weather file · " + sx.zoneLabel + " climate (NBC 2016). Everything below is also drawn on the plan.</p>" +
+      '<div class="pl-cool-sum"><div><b>' + sx.vent.crossCount + "/" + sx.vent.habitable + "</b><span>rooms cross-ventilated</span></div>" +
+      "<div><b>" + met + "/" + checks.length + "</b><span>cool-home checks met</span></div>" +
+      "<div><b>" + sx.windows.length + "</b><span>windows placed</span></div></div>";
+    h += sec("Key moves", '<ol class="pl-key">' + sx.key.map(function (k) { return "<li>" + App.esc(k) + "</li>"; }).join("") + "</ol>", true);
+    h += sec("Cross-ventilation", '<ul class="tips small">' + sx.vent.tips.map(function (t) { return "<li>" + App.esc(t) + "</li>"; }).join("") + "</ul>" +
+      '<p class="small muted">On the plan: dark-blue arrows bring the breeze in through smaller, lower inlet windows; light-blue arrows take it out through larger, higher outlets; dashed lines show the path across the house.</p>', true);
+    const byRoom = {};
+    sx.windows.forEach(function (w) { (byRoom[w.uid] = byRoom[w.uid] || []).push(w); });
+    h += sec("Windows (" + sx.windows.length + ")", '<p class="small muted">Sized to about ' + Math.round(100 * Math.max(sx.openShare, sx.zone === "warm-humid" ? 0.2 : 0.15)) + " % of each room's floor area (at least the " + Math.round(100 * sx.openShare) + " % openable area that Eco-Niwas Samhita 2018 asks for), with less glass on hot walls. Tap a window on the plan for its size.</p>" +
+      Object.keys(byRoom).map(function (uid) {
+        return '<div class="pl-winroom"><b>' + App.esc(nm[uid] || "") + "</b>" + (sx.roomWin[uid].cross ? ' <span class="tag preferred">cross-ventilated</span>' : "") + '<ul class="pl-winlist">' + byRoom[uid].map(winLine).join("") + "</ul></div>";
+      }).join("") + '<p class="small muted">Add a 300–450 mm ventilator near the ceiling above each door and window so the hottest air can always escape.</p>');
+    h += sec("Walls — thickness and build-up", '<ul class="pl-slist">' + sx.sides.map(function (x) {
+      return "<li>" + sideChip(x) + "<span><b>" + x.wall.mm + " mm</b> — " + App.esc(x.wall.build) + ".</span></li>";
+    }).join("") + "</ul><p class=\"small muted\">" + App.esc(sx.partition) + ". On the plan, outside walls are drawn at this thickness and coloured by heat.</p>");
+    h += sec("Roof — cutting heat from above", '<p class="small muted">' + App.esc(sx.roof.text) + '</p><ol class="pl-roofopts">' + sx.roofOptions.map(function (r) {
+      return "<li><div><b>" + App.esc(r.name) + '</b> <span class="tag cost">' + App.esc(r.cost) + "</span></div><span>" + App.esc(r.spec) + '.</span><small class="muted">' + App.esc(r.effect) + ".</small></li>";
+    }).join("") + "</ol>");
+    h += sec("Shading", '<ul class="pl-slist">' + sx.sides.map(function (x) { return "<li>" + sideChip(x) + "<span>" + App.esc(x.shade.text) + "<br><b>Glass:</b> " + App.esc(x.window) + "</span></li>"; }).join("") + "</ul>");
+    h += sec("Planting & site", '<ul class="pl-slist">' + sx.sides.map(function (x) { return "<li>" + sideChip(x) + "<span>" + App.esc(x.plant.text) + "</span></li>"; }).join("") + "</ul><ul class=\"tips small\">" + sx.site.map(function (t) { return "<li>" + App.esc(t) + "</li>"; }).join("") + "</ul>");
+    const icon = { done: "✓", part: "◐", todo: "!", tip: "•" };
+    h += sec("Cool-home checklist", '<ul class="pl-checks">' + sx.checks.map(function (c) {
+      return '<li class="' + c.status + '"><i aria-hidden="true">' + icon[c.status] + "</i><div><b>" + App.esc(c.title) + "</b><span>" + App.esc(c.text) + "</span></div></li>";
+    }).join("") + "</ul>", true);
     return h + nextBtn("Next: report");
   }
 
@@ -438,6 +461,7 @@
       return '<li><span class="pl-zchip" style="--z:' + z.color + '">' + z.name + '</span><span class="tag ' + sp.s.verdict.toLowerCase() + '">' + sp.s.verdict + "</span><b>" + pct(sp.s.total) + "</b>" +
         (here ? '<span class="small muted">here</span>' : '<button type="button" class="btn sm" data-act="spot" data-k="' + k + '">Move</button>') + "</li>";
     }).join("") + "</ol></details>";
+    if (st.tab === CLIMATE && metrics && d.kind === "room") h += roomClimate(strategies(), it);
     h += '<p class="small muted"><b>Vastu:</b> ' + (d.pref.length ? "best in " + P.goodZones(d).join(", ") : "") + (d.avoid.length ? "; avoid " + d.avoid.map(function (z) { return App.zoneById(z).name; }).join(", ") : "") + ".</p></section>";
     return h;
   }
@@ -587,7 +611,7 @@
           (sel || fs * 0.62 * ppm >= 9 ? '<text class="pl-ftxt" x="' + f(it.x) + '" y="' + f(it.y + r + fs * 0.6) + '" font-size="' + f(Math.max(fs * 0.62, 10 / ppm)) + '">' + App.esc(nm) + "</text>" : "") + "</g>";
       }
     });
-    if (strat) g += strategyLayer(strat, { W: W, D: D, b: b, v: v, fs: fs, f: f, idp: idp, static: opts.static });
+    if (strat) g += strategyLayer(strat, { W: W, D: D, b: b, v: v, fs: fs, f: f, idp: idp, static: opts.static, ppm: ppm });
     // tracing: box being drawn
     if (drag && drag.mode === "draw" && drag.rect && !opts.static) {
       const r = drag.rect;
@@ -647,34 +671,52 @@
           : '<line class="pl-hedge" x1="' + f(pos) + '" y1="0.3" x2="' + f(pos) + '" y2="' + f(D - 0.3) + '"><title>' + App.esc(x.plant.text) + "</title></line>";
       }
     });
-    // walls: each room's outside walls coloured by exposure
+    // walls: each room's outside walls, coloured by exposure and drawn at the recommended thickness
     if (st.show.mat || o.static) rooms.forEach(function (it) {
       P.facades(s, it, null, sx.footprint).forEach(function (fc) {
-        const x = bySide[fc.side];
+        const x = bySide[fc.side], t = Math.max(x.wall.mm / 1000, 3 / (o.ppm || 40));
         const seg = fc.side === "top" ? [it.x, it.y, it.x + it.w, it.y] : fc.side === "bottom" ? [it.x, it.y + it.h, it.x + it.w, it.y + it.h]
           : fc.side === "left" ? [it.x, it.y, it.x, it.y + it.h] : [it.x + it.w, it.y, it.x + it.w, it.y + it.h];
-        g += '<line class="pl-wall" x1="' + f(seg[0]) + '" y1="' + f(seg[1]) + '" x2="' + f(seg[2]) + '" y2="' + f(seg[3]) + '" stroke="' + HEAT_COLOR[x.heat] + '" stroke-width="' + f(Math.max(0.18, fs * 0.42)) + '"><title>' + x.dirName + " wall: " + App.esc(x.wall.text) + "</title></line>";
+        g += '<line class="pl-wall" x1="' + f(seg[0]) + '" y1="' + f(seg[1]) + '" x2="' + f(seg[2]) + '" y2="' + f(seg[3]) + '" stroke="' + HEAT_COLOR[x.heat] + '" stroke-width="' + f(t) + '"><title>' + x.dirName + " wall, " + x.wall.mm + " mm: " + App.esc(x.wall.build) + "</title></line>";
       });
     });
-    // ventilation: inlets on the windward walls, outlets on the leeward walls, a stack vent at the centre
+    // airflow: the breeze crossing the house from each inlet window to the leeward side, plus arrows
+    // into the inlets and out of the outlets, and the stack vent at the centre
     if (st.show.vent || o.static) {
-      const arrow = function (uid, side, inward) {
-        const it = find(uid);
-        if (!it) return;
-        const n = out[side], mx = side === "left" ? it.x : side === "right" ? it.x + it.w : it.x + it.w / 2, my = side === "top" ? it.y : side === "bottom" ? it.y + it.h : it.y + it.h / 2;
-        const Lr = Math.max(1, fs * 2.4), sgn = inward ? -1 : 1;
-        const x0 = inward ? mx + n[0] * Lr : mx, y0 = inward ? my + n[1] * Lr : my, x1 = inward ? mx - n[0] * Lr * 0.35 : mx + n[0] * Lr, y1 = inward ? my - n[1] * Lr * 0.35 : my + n[1] * Lr;
-        g += '<line class="pl-vent ' + (inward ? "in" : "out") + '" x1="' + f(x0) + '" y1="' + f(y0) + '" x2="' + f(x1) + '" y2="' + f(y1) + '" stroke-width="' + f(fs * 0.22) + '" marker-end="url(#' + o.idp + 'arrow)"><title>' + (inward ? "Inlet window (lower, smaller)" : "Outlet window (higher, larger)") + "</title></line>";
-        return sgn;
-      };
-      if (sx.vent.windward) sx.vent.inlets.forEach(function (u) { arrow(u, sx.vent.windward, true); });
-      if (sx.vent.leeward) sx.vent.outlets.forEach(function (u) { arrow(u, sx.vent.leeward, false); });
+      const fpb = sx.footprint, ww = sx.vent.windward;
+      if (ww && sx.vent.leeward === { top: "bottom", bottom: "top", left: "right", right: "left" }[ww]) {
+        const n = out[ww];
+        sx.windows.filter(function (w) { return w.role === "inlet"; }).forEach(function (w) {
+          const x1 = n[0] ? (n[0] < 0 ? fpb.x1 : fpb.x0) : w.x, y1 = n[1] ? (n[1] < 0 ? fpb.y1 : fpb.y0) : w.y;
+          g += '<line class="pl-flow" x1="' + f(w.x) + '" y1="' + f(w.y) + '" x2="' + f(x1) + '" y2="' + f(y1) + '" stroke-width="' + f(fs * 0.12) + '"/>';
+        });
+      }
+      sx.windows.forEach(function (w) {
+        if (w.role !== "inlet" && w.role !== "outlet") return;
+        const n = out[w.side], Lr = Math.max(0.9, fs * 2), inward = w.role === "inlet";
+        const x0 = inward ? w.x + n[0] * Lr : w.x, y0 = inward ? w.y + n[1] * Lr : w.y;
+        const x1 = inward ? w.x - n[0] * Lr * 0.4 : w.x + n[0] * Lr, y1 = inward ? w.y - n[1] * Lr * 0.4 : w.y + n[1] * Lr;
+        g += '<line class="pl-vent ' + (inward ? "in" : "out") + '" x1="' + f(x0) + '" y1="' + f(y0) + '" x2="' + f(x1) + '" y2="' + f(y1) + '" stroke-width="' + f(fs * 0.22) + '" marker-end="url(#' + o.idp + 'arrow)"><title>' + (inward ? "Breeze in: smaller, lower inlet window" : "Breeze out: larger, higher outlet window") + "</title></line>";
+      });
       if (sx.vent.stack) {
         const r = Math.min(W, D) / 9;
         g += '<g class="pl-stack"><title>Stack vent: courtyard, double-height hall or skylight with high openable vents</title><circle cx="' + f(W / 2) + '" cy="' + f(D / 2) + '" r="' + f(r) + '"/>' +
-          '<text x="' + f(W / 2) + '" y="' + f(D / 2) + '" font-size="' + f(fs * 0.62) + '">↑ stack vent</text></g>';
+          '<text x="' + f(W / 2) + '" y="' + f(D / 2) + '" font-size="' + f(fs * 0.62) + '">↑ hot air out</text></g>';
       }
     }
+    // windows and ventilators, to scale, on the walls they belong to
+    if (st.show.win || o.static) sx.windows.forEach(function (w) {
+      const x = bySide[w.side], t = Math.max(x.wall.mm / 1000, 3 / (o.ppm || 40)) + 0.06;
+      const rx = w.horiz ? w.x - w.width / 2 : w.x - t / 2, ry = w.horiz ? w.y - t / 2 : w.y - w.width / 2, rw = w.horiz ? w.width : t, rh = w.horiz ? t : w.width;
+      const kind = { inlet: "Inlet window", outlet: "Outlet window", window: "Window", high: "High window", vent: "Ventilator" }[w.role];
+      g += '<g class="pl-win ' + w.role + '"><title>' + kind + " on the " + x.dirName + " wall: " + w.width.toFixed(2) + " m wide × " + w.height.toFixed(2) + " m high, sill " + w.sill.toFixed(2) + ' m</title>' +
+        '<rect x="' + f(rx) + '" y="' + f(ry) + '" width="' + f(rw) + '" height="' + f(rh) + '"/>' +
+        (w.horiz ? '<line x1="' + f(rx) + '" y1="' + f(w.y) + '" x2="' + f(rx + rw) + '" y2="' + f(w.y) + '"/>' : '<line x1="' + f(w.x) + '" y1="' + f(ry) + '" x2="' + f(w.x) + '" y2="' + f(ry + rh) + '"/>') + "</g>";
+      if (w.width * (o.ppm || 40) > 34 && !o.static) {
+        const n = out[w.side], d = t / 2 + fs * 0.55;
+        g += '<text class="pl-wlabel" x="' + f(w.x + n[0] * d) + '" y="' + f(w.y + n[1] * d) + '" font-size="' + f(Math.max(fs * 0.5, 9 / (o.ppm || 40))) + '">' + len(w.width) + "</text>";
+      }
+    });
     // labels outside each side
     sx.sides.forEach(function (x) {
       const parts = [x.dir + " · " + HEAT[x.heat]];
@@ -1228,6 +1270,21 @@
           return "<tr><td>" + sideChip(x) + (x.windward ? '<div class="small muted">breeze inlet side</div>' : x.leeward ? '<div class="small muted">breeze outlet side</div>' : "") + '</td><td class="small">' + App.esc(x.shade.text) +
             '</td><td class="small">' + App.esc(x.wall.text) + '</td><td class="small">' + App.esc(x.window) + '</td><td class="small">' + App.esc(x.plant.text) + "</td></tr>";
         }).join("") + '</tbody></table></div><ul class="tips small">' + sx.site.map(function (t) { return "<li>" + App.esc(t) + "</li>"; }).join("") + "</ul></section>";
+      h += '<section class="card"><h2>Window schedule</h2><p class="small muted">Sizes rounded to standard joinery; inlets lower and smaller on the breeze side, outlets higher and larger on the leeward side. Add a 300–450 mm ventilator near the ceiling above each door and window.</p>' +
+        '<div class="table-wrap"><table class="pl-sched"><thead><tr><th>Room</th><th>Wall</th><th>Type</th><th>Width × height</th><th>Sill</th></tr></thead><tbody>' +
+        sx.windows.map(function (w) {
+          return "<tr><td>" + App.esc(nm[w.uid] || "") + "</td><td>" + DIR_NAMES[w.dir] + '</td><td><span class="tag win-' + w.role + '">' + ROLE[w.role] + "</span></td><td>" + len(w.width) + " × " + len(w.height) + "</td><td>" + len(w.sill) + "</td></tr>";
+        }).join("") + "</tbody></table></div>" +
+        "<p class=\"small\"><b>Cross-ventilation:</b> " + sx.vent.crossCount + " of " + sx.vent.habitable + " living rooms and bedrooms have openings on two walls.</p></section>";
+      h += '<section class="card"><h2>Walls and roof</h2><div class="pl-rep-grid"><div><h3>Outside walls</h3><ul class="pl-slist">' + sx.sides.map(function (x) {
+        return "<li>" + sideChip(x) + "<span><b>" + x.wall.mm + " mm</b> — " + App.esc(x.wall.build) + ".</span></li>";
+      }).join("") + '</ul><p class="small muted">' + App.esc(sx.partition) + '.</p></div><div><h3>Roof — ways to cut heat</h3><ol class="pl-roofopts">' + sx.roofOptions.map(function (r) {
+        return "<li><div><b>" + App.esc(r.name) + '</b> <span class="tag cost">' + App.esc(r.cost) + "</span></div><span>" + App.esc(r.spec) + '.</span><small class="muted">' + App.esc(r.effect) + ".</small></li>";
+      }).join("") + "</ol></div></div></section>";
+      const icon = { done: "✓", part: "◐", todo: "!", tip: "•" };
+      h += '<section class="card"><h2>Cool-home checklist</h2><ul class="pl-checks">' + sx.checks.map(function (c) {
+        return '<li class="' + c.status + '"><i aria-hidden="true">' + icon[c.status] + "</i><div><b>" + App.esc(c.title) + "</b><span>" + App.esc(c.text) + "</span></div></li>";
+      }).join("") + "</ul></section>";
       const sol = App.scienceScores(metrics, "solar"), bestK = sol.score.indexOf(Math.max.apply(null, sol.score));
       h += '<section class="card"><h2>Rooftop solar</h2><p>Face the panels <b>' + DIR_NAMES[DIRS[bestK]] + "</b> (" + App.esc(sol.why[bestK]) + "), tilted at about the site latitude (" + ds.meta.lat.toFixed(0) + "°). Vastu also favours " +
         App.VASTU_SOLAR.pref.map(function (z) { return DIR_NAMES[z]; }).join(", ") + " for heavy rooftop structures. Panel frames can face south whatever the room below.</p></section>";
