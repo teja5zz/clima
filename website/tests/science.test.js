@@ -203,3 +203,31 @@ test("climate strategies for a plan", () => {
   const ids = new Set(items.map((it) => it.uid));
   s.vent.inlets.concat(s.vent.outlets, s.vent.single).forEach((u) => assert.ok(ids.has(u)));
 });
+
+test("windows, walls, roof and checklist for keeping cool", () => {
+  const A = global.App, P = A.Plan;
+  const epw = fs.readFileSync(path.join(__dirname, "..", "..", "tests", "python", "ITA_ER_Bologna-Marconi.AP.161400_TMYx.2004-2018.epw"), "utf8");
+  const ds = A.parseEpw(epw, "sample.epw"), m = A.siteMetrics(ds);
+  for (const units of ["ft", "m"]) {
+    const site = { ...P.defaultSite(), units }, items = P.autoArrange({ site, metrics: m, weight: 0.5 }, P.fromPreset("3bhk"));
+    const s = A.planStrategies(ds, m, site, items);
+    const fp = P.footprint(site, items);
+    // every room that needs light and air and has an outside wall gets at least one opening on an outside wall
+    for (const it of items.filter((x) => A.VASTU_ROOM[x.t].habitable && P.facades(site, x, null, fp).length)) {
+      const list = s.roomWin[it.uid].list;
+      assert.ok(list.length >= 1, it.t + " has no window");
+      const sides = P.facades(site, it, null, fp).map((f) => f.side);
+      list.forEach((w) => assert.ok(sides.includes(w.side)));
+      assert.ok(s.roomWin[it.uid].area >= 0.08 * it.w * it.h, it.t + " window area " + s.roomWin[it.uid].area);
+    }
+    // inlets only on the windward wall, outlets only on the leeward wall
+    for (const w of s.windows) {
+      if (w.role === "inlet") assert.strictEqual(w.side, s.vent.windward);
+      if (w.role === "outlet") assert.strictEqual(w.side, s.vent.leeward);
+    }
+    s.sides.forEach((x) => assert.ok(x.wall.mm >= 150 && x.wall.mm <= 300 && x.wall.build));
+    assert.ok(s.roofOptions.length >= 3);
+    assert.ok(s.checks.some((c) => c.status !== "tip") && s.checks.some((c) => c.status === "tip"));
+    assert.ok(s.vent.crossCount <= s.vent.habitable);
+  }
+});

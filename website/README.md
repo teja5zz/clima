@@ -1,20 +1,22 @@
-# Climate & Vastu Studio — Tejas Constructions
+# Climate & Vastu Studio — trikrt
 
-A climate-analysis, comfort and **Vastu × Science** planning website for Indian buildings, by Tejas Constructions
+A climate-analysis, comfort and **Vastu × Science** planning website for Indian buildings, by **trikrt**
 (Tejas P R, BE, MS — Chartered Structural Engineer, Mysore). It is a browser-first edition of the open-source
 [CBE Clima Tool](https://github.com/CenterForTheBuiltEnvironment/clima), hosted on **Firebase**: static files on
 Firebase Hosting, plus one Cloud Function in Mumbai (`asia-south1`) that fetches weather files for the browser.
 
 ## Brand settings
 
-All company details live in **`js/config.js`**: name, logo, tagline, phone, email, website, address, services and colours.
+All company details live in **`js/config.js`**: name, wordmarks, tagline, phone, email, website, address, services and colours.
+
+Brand assets are in `img/`: `trikrt-wordmark.svg` (forest), `trikrt-wordmark-white.svg` (on photos and the footer), `trikrt-mark.svg` (square icon: the logo's macron, stem and ring), `favicon-32.png`, `apple-touch-icon.png`, `og-image.jpg` (link previews) and `forest.jpg` (hero photo). The wordmark is drawn as vector outlines from Outfit (SIL Open Font License) with the macron and ring added, to match the trikrt banner. Colours: forest `#173a2a`, green `#2f7d4f`, moss `#b9dc8c`, mist `#f4f6f2`, sunlight `#e0952c` (selection on the plan only).
 
 ## Tools
 
 | Page | What it does |
 | --- | --- |
 | Home & choose location | Search 405 Indian weather stations (Climate.OneBuilding.org TMYx, ISHRAE, IWEC) by city, district or state, or use "Near me", then load one with a click. You can also upload an EPW/ZIP or paste a link |
-| **Vastu × Science planner** | A guided four-step workspace (Site → Rooms → Arrange → Report). Enter the plot size, facing and setbacks, pick a house type (1–4 BHK) or individual rooms, and auto-arrange them using the Tejas Constructions Vastu Wheel and the site's real sun, heat and breeze. Drag, resize, rotate and nudge rooms with live Vastu and climate scores, see the best places for each room, and fix flagged problems (overlaps, setbacks, NBC minimum sizes, windowless rooms, avoid-zones). You can also upload a photo of an existing plan and trace its rooms. A Climate step draws strategies on the plan from the site's weather: chajja and fin depths for each wall, wall/window/roof materials by NBC zone and exposure, breeze inlets and outlets, stack ventilation and planting. It has undo/redo, autosave, share links, plan files, an SVG drawing export and a printable report |
+| **Vastu × Science planner** | A full-screen design studio. A start screen asks three questions (house type, plot size, road facing) and places every room using the trikrt Vastu wheel and the site's real sun, heat and breeze; you can also trace an uploaded plan drawing or start from a blank plot. Tabs for Plot, Rooms, Climate and Report sit beside a zoomable, pannable drawing (scroll / pinch to zoom, drag to pan). Tap a room for its inspector: why it scores as it does, a one-tap "move to its best spot", size steppers, rotate / duplicate / delete. Rooms can be added with + or dragged onto the plan. The Climate tab draws chajja depths, wall and window materials, breeze inlets/outlets and planting on the plan. Plans are named, saved on the device, shareable by link, and print as a report. On phones the panel is a bottom sheet with bottom tabs |
 | Climate summary | Location details, headline numbers, a monthly table, heating/cooling degree days, monthly box plots and CSV export |
 | Temperature & humidity | Annual band chart with IMAC (NV/MM) or ASHRAE 55 adaptive bands, daily profiles, heatmap and statistics |
 | Sun & clouds | Polar and Cartesian sun paths coloured by any variable, monthly radiation profiles, sky cover and heatmaps |

@@ -64,6 +64,16 @@ window.App = window.App || {};
       mid: ["Cavity wall: brick + 50 mm XPS/EPS + brick (U ≤ 0.6).", "insulated cavity"],
       low: ["Insulated cavity wall (brick + 50–75 mm XPS + brick), small windows.", "insulated cavity"] },
   };
+  // Outer wall thickness (mm) and build-up by climate group and exposure.
+  const WALL_BUILD = {
+    hot: { high: [300, "300 mm cavity wall: 115 mm brick + 75 mm air gap or EPS + 115 mm brick (U ≈ 0.9), or 200 mm AAC block (U ≈ 0.8)"],
+      mid: [230, "230 mm (9″) burnt-clay brick or 200 mm AAC block"], low: [230, "230 mm (9″) brick or CSEB"] },
+    humid: { high: [200, "200 mm AAC block (U ≈ 0.8) or 230 mm CSEB — light and quick to dry"], mid: [200, "200 mm AAC block or CSEB"], low: [200, "150–200 mm CSEB or brick"] },
+    temperate: { high: [230, "230 mm brick or 200 mm AAC block"], mid: [230, "230 mm brick or CSEB"], low: [230, "230 mm brick or CSEB"] },
+    cold: { high: [300, "300 mm: 230 mm brick or stone (thermal mass) + 50 mm XPS outside, plastered"], mid: [300, "300 mm cavity: 115 mm brick + 50 mm XPS + 115 mm brick (U ≤ 0.6)"], low: [300, "300 mm insulated cavity wall (U ≤ 0.6)"] },
+  };
+  const PARTITION = "Inside partitions: 115 mm (4½″) brick or 100 mm AAC; keep them light so rooms cool down quickly at night" ;
+
   function zoneGroup(zone) {
     return zone === "warm-humid" ? "humid" : zone === "temperate" ? "temperate" : zone === "cold" ? "cold" : "hot";
   }
@@ -78,6 +88,27 @@ window.App = window.App || {};
     if (zone === "cold") return { text: "Insulate the roof well: 75–100 mm XPS/PUF over the slab (U ≤ 0.6 W/m²K); a darker finish is fine.", short: "insulated roof" };
     const base = "The roof gets the most sun of any surface. Meet ENS 2018 (U ≤ 1.2 W/m²K): 50 mm XPS or PUF over the RCC slab under the screed, or 100 mm brick-bat coba; finish with white cool-roof paint or china-mosaic (SRI ≥ 78). Solar panels or a pergola over the terrace add shade.";
     return { text: zone === "warm-humid" ? base + " Slope it for heavy rain and give generous eaves." : base, short: "cool + insulated roof" };
+  }
+
+  // Ways to cut heat from the roof, most cost-effective first.
+  function roofOptions(zone) {
+    if (zone === "cold") return [
+      { name: "Insulation over the slab", spec: "75–100 mm XPS or PUF over the waterproofing, under the screed (U ≤ 0.6 W/m²K)", effect: "Keeps the heat in on winter nights", cost: "₹₹" },
+      { name: "Insulated top-floor ceiling", spec: "False ceiling with 75 mm mineral wool, or an insulated attic under a pitched roof", effect: "Warmer top-floor rooms", cost: "₹₹" },
+      { name: "Sunspace / glazed terrace", spec: "A south-facing glazed sit-out on the terrace", effect: "Collects winter sun", cost: "₹₹" },
+    ];
+    const list = [
+      { name: "Cool-roof finish", spec: "White elastomeric cool-roof paint or broken white china-mosaic tiles (SRI ≥ 78)", effect: "Roof surface 15–25 °C cooler on a sunny afternoon", cost: "₹" },
+      { name: "Insulation over the slab", spec: "40–50 mm XPS or PUF boards over the waterproofing, under the screed or tiles (U ≈ 0.5 W/m²K; ENS 2018 asks ≤ 1.2)", effect: "Cuts heat coming through the roof by about two-thirds", cost: "₹₹" },
+      { name: "Shade the whole roof", spec: "Solar panels or a pergola / sheet canopy 0.6–1 m above the terrace, open at the sides", effect: "Stops direct sun on the slab; the solar panels pay for themselves", cost: "₹₹–₹₹₹" },
+      { name: "Filler slab", spec: "Clay pots or Mangalore tiles cast into the underside of the RCC slab (to be designed by your structural engineer)", effect: "Trapped air slows heat; 15–25 % less concrete and steel", cost: "saves money" },
+      { name: "Brick-bat coba terrace", spec: "100 mm lime and brick-bat weathering course with a tile finish", effect: "Traditional mass with air pockets that delays and reduces heat", cost: "₹" },
+      { name: "Roof garden or inverted pots", spec: "Terrace planters, or a layer of inverted earthen pots under the finish (check load and waterproofing)", effect: "Shade and evaporation keep the slab cool", cost: "₹₹" },
+      { name: "Let hot air out at the top", spec: "Openable ventilators or a skylight with vents over the stair / centre, roof vents or turbo ventilators", effect: "Hot air under the ceiling escapes instead of radiating down", cost: "₹" },
+      { name: "Tank on the hot corner", spec: "Put the overhead water tank over the south-west or west part of the roof (also what Vastu prefers)", effect: "Shades the hottest part of the roof", cost: "free" },
+    ];
+    if (zone === "warm-humid") list.splice(2, 0, { name: "Pitched roof with ventilated attic", spec: "Tiled or sheet roof over the slab with open gables and wide eaves", effect: "Sheds heavy rain and vents trapped heat", cost: "₹₹" });
+    return list;
   }
 
   /* ---------- planting ---------- */
@@ -111,8 +142,8 @@ window.App = window.App || {};
     sides.forEach(function (s) { s.windward = s === ww; s.leeward = s === lw; });
     sides.forEach(function (s) {
       s.shade = shadeAdvice(shadeFor(ds, s.az), zone);
-      const w = WALL[grp][s.heat];
-      s.wall = { text: w[0], short: w[1] };
+      const w = WALL[grp][s.heat], wb = WALL_BUILD[grp][s.heat];
+      s.wall = { text: w[0], short: w[1], mm: wb[0], build: wb[1] };
       s.window = windowAdvice(s.heat, zone, wfr);
       s.plant = plantAdvice(s, zone);
     });
@@ -152,6 +183,98 @@ window.App = window.App || {};
     if (single.length) vent.tips.push(single.length + " room" + (single.length > 1 ? "s have" : " has") + " windows on one wall only: add a high ventilator or jaali into a passage, or a door to a cross-ventilated room.");
 
     const roof = roofAdvice(zone);
+
+    // windows for every room: openable area from ENS 2018 (or NBC's 1/10 of the floor), shared between the
+    // outside walls by exposure and breeze — smaller, lower inlets on the windward wall, larger outlets leeward
+    // target window area: ~15 % of the floor for daylight (20 % in humid climates), never below the
+    // ENS 2018 openable minimum (wfr) or NBC's 1/10; widths rounded to standard joinery sizes
+    const openShare = Math.max(0.1, wfr / 100), target = Math.max(openShare, zone === "warm-humid" ? 0.2 : zone === "cold" ? 0.12 : 0.15);
+    // standard sizes: feet for plans drawn in feet (2′–7′ wide, 4′ high), metres otherwise
+    const FT = 0.3048, inFt = site.units !== "m";
+    const SIZES = inFt ? [2, 3, 4, 5, 6, 7].map(function (v) { return v * FT; }) : [0.6, 0.9, 1.2, 1.5, 1.8, 2.1];
+    const H = inFt ? { win: 4 * FT, high: 2 * FT, vent: 1.5 * FT } : { win: 1.2, high: 0.6, vent: 0.45 };
+    const SILL = inFt ? { vent: 7 * FT, high: 5 * FT, inlet: 2 * FT, outlet: 3.5 * FT, window: 3 * FT } : { vent: 2.1, high: 1.5, inlet: 0.6, outlet: 1.0, window: 0.9 };
+    const windows = [], roomWin = {};
+    rooms.forEach(function (it) {
+      const def = App.VASTU_ROOM[it.t], A = it.w * it.h, fac = P.facades(site, it, null, fp);
+      let need = 0, kind = "window";
+      if (def.habitable || it.t === "dining") need = target * A;
+      else if (it.t === "staircase") need = Math.max(1, 0.08 * A);
+      else if (it.t === "pooja") need = 0.36;
+      else if (it.t === "toilets") { need = 0.27; kind = "vent"; }
+      else if (it.t === "store") { need = 0.14; kind = "vent"; }
+      const info = { need: need, area: 0, cross: false, interior: !fac.length, list: [] };
+      roomWin[it.uid] = info;
+      if (!need || !fac.length) return;
+      const heatW = function (x) { return zone === "cold" ? { high: 1.6, mid: 1, low: 0.6 }[x.heat] : { high: 0.4, mid: 0.75, low: 1 }[x.heat]; };
+      let use = fac.map(function (f) {
+        const x = sides.find(function (y) { return y.side === f.side; });
+        const role = x.windward ? "inlet" : x.leeward ? "outlet" : "window";
+        return { f: f, x: x, role: role, w: f.len * heatW(x) * (role === "outlet" ? 1.4 : 1) };
+      });
+      if (kind === "vent") use = [use.slice().sort(function (a, c) { return (c.role === "outlet") - (a.role === "outlet") || c.w - a.w; })[0]];
+      const tot = use.reduce(function (a, u) { return a + u.w; }, 0);
+      use.forEach(function (u) {
+        const share = need * u.w / tot;
+        if (share < 0.12 && use.length > 1) return;
+        const hotOnly = u.x.heat === "high" && zone !== "cold" && u.role === "window";
+        const h = kind === "vent" ? H.vent : hotOnly ? H.high : H.win;
+        const sill = kind === "vent" ? SILL.vent : hotOnly ? SILL.high : SILL[u.role];
+        const raw = kind === "vent" ? SIZES[0] : share / h;
+        let width = SIZES.reduce(function (a, c) { return Math.abs(c - raw) < Math.abs(a - raw) ? c : a; }, SIZES[0]);
+        width = Math.max(0.45, Math.min(width, u.f.len - 0.45));
+        const sd = u.f.side, cx = it.x + it.w / 2, cy = it.y + it.h / 2;
+        const pos = sd === "top" ? { x: cx, y: it.y } : sd === "bottom" ? { x: cx, y: it.y + it.h } : sd === "left" ? { x: it.x, y: cy } : { x: it.x + it.w, y: cy };
+        const role = kind === "vent" ? "vent" : hotOnly ? "high" : u.role;
+        const win = { uid: it.uid, side: sd, dir: u.x.dir, x: pos.x, y: pos.y, horiz: sd === "top" || sd === "bottom", width: Math.round(width * 1000) / 1000, height: h, sill: sill, role: role, area: width * h };
+        windows.push(win); info.list.push(win); info.area += win.area;
+      });
+      const roles = info.list.map(function (w) { return w.role; });
+      info.cross = (roles.indexOf("inlet") >= 0 && roles.indexOf("outlet") >= 0) || new Set(info.list.map(function (w) { return w.side; })).size >= 2;
+    });
+    const habit = rooms.filter(function (it) { return App.VASTU_ROOM[it.t].habitable; });
+    vent.crossCount = habit.filter(function (it) { return roomWin[it.uid] && roomWin[it.uid].cross; }).length;
+    vent.habitable = habit.length;
+
+    // a checklist of ways to keep the house cool: checked against the plan where possible
+    const hot = sides.slice().sort(function (a, b2) { return b2.hotKwh - a.hotKwh; })[0];
+    const label = function (it) { return it.n || App.VASTU_ROOM[it.t].label; };
+    const facing = function (it, side) { return P.facades(site, it, null, fp).some(function (f) { return f.side === side; }); };
+    const onHot = rooms.filter(function (it) { return facing(it, hot.side); });
+    const buffers = onHot.filter(function (it) { return ["toilets", "staircase", "store"].indexOf(it.t) >= 0; });
+    const hotBeds = onHot.filter(function (it) { return App.VASTU_ROOM[it.t].sci === "bedroom"; });
+    const kitchens = rooms.filter(function (it) { return it.t === "kitchen"; });
+    const nsSides = sides.filter(function (x) { return x.dir === "N" || x.dir === "S"; });
+    const fpW = fp.x1 - fp.x0, fpD = fp.y1 - fp.y0;
+    const nsLong = nsSides.length ? (nsSides[0].side === "top" || nsSides[0].side === "bottom" ? fpW >= fpD : fpD >= fpW) : null;
+    const checks = [];
+    const chk = function (status, title, text) { checks.push({ status: status, title: title, text: text }); };
+    if (zone !== "cold") {
+      chk(buffers.length ? "done" : "todo", "Service rooms as a heat buffer on the hot " + hot.dirName + " side",
+        buffers.length ? buffers.map(label).join(", ") + " already shield the " + hot.dirName + " wall." : "Put the stair, toilets or store along the " + hot.dirName + " wall so living rooms and bedrooms stay cooler.");
+      chk(hotBeds.length ? "todo" : "done", "Bedrooms away from the hottest wall",
+        hotBeds.length ? hotBeds.map(label).join(", ") + " face" + (hotBeds.length > 1 ? "" : "s") + " the hot " + hot.dirName + " wall — move it, or add a wardrobe wall, cavity wall and deep shading there." : "No bedroom faces the hot " + hot.dirName + " wall.");
+    }
+    if (habit.length) chk(vent.crossCount === habit.length ? "done" : vent.crossCount >= habit.length / 2 ? "part" : "todo", "Cross-ventilation in every living room and bedroom",
+      vent.crossCount + " of " + habit.length + " rooms have windows on two walls. " + (vent.crossCount < habit.length ? "For the others, add a ventilator above the door into a passage or a jaali to the next room." : ""));
+    if (kitchens.length && lw) chk(kitchens.some(function (it) { return facing(it, lw.side); }) ? "done" : "todo", "Kitchen on the leeward (" + lw.dirName + ") side",
+      kitchens.some(function (it) { return facing(it, lw.side); }) ? "Cooking heat and smells leave the house with the breeze." : "Give the kitchen an outside wall on the " + lw.dirName + " side, or fit a chimney and exhaust fan.");
+    if (zone !== "cold") chk(centreFree ? "done" : "todo", "Open centre for stack ventilation", centreFree ? "The Brahmasthan is open: make it a courtyard, double-height hall or skylight with high vents." : "A room sits in the centre; a skylight or vents above it still help hot air out.");
+    if (nsLong != null && zone !== "cold") chk(nsLong ? "done" : "part", "Longer walls facing north and south", nsLong ? "The long walls face north and south, which are the easiest to shade." : "The long walls face east and west, which get low morning and evening sun — shade them well (fins, jaali, verandah).");
+    const tips = [
+      ["Light, reflective outside paint", "White or light colours (SRI > 60) on walls and parapets keep them 5–10 °C cooler in the sun."],
+      ["Ventilators near the ceiling", "A 300–450 mm ventilator above every door and window lets the hottest air out, even at night with windows closed."],
+      ["Ceiling fans in every room", "Air movement of 1 m/s makes about 28–30 °C feel comfortable (IMAC) — far cheaper to run than AC."],
+      ["Jaali or louvred shutters", "Ventilate at night while staying secure and keeping out sun and rain."],
+      ["Keep heat sources down", "LED lights, a kitchen chimney or exhaust, and the fridge away from bedrooms."],
+      ["Green, not paved, around the house", "Grass and shrubs instead of hard paving next to the walls; shade trees on the west and south-west."],
+    ];
+    if (vent.night) tips.unshift(["Night flushing", "Close and shade windows by day; open them wide from late evening to early morning so the walls and floor cool down."]);
+    if (zone === "hot-dry") tips.unshift(["Evaporative cooling", "A desert cooler, a small water body in the courtyard or wet khus mats on the breeze side cool dry air by 6–10 °C."]);
+    if (zone === "warm-humid") tips.unshift(["Fight the damp", "Raise the plinth at least 450 mm, keep air moving day and night, and avoid heavy walls that stay warm and damp."]);
+    if (zone === "cold") tips.splice(0, tips.length, ["Seal draughts", "Weather-strip doors and windows; use double glazing on the cold sides."], ["Thermal mass in the sun", "A stone or brick floor/wall behind south glazing stores daytime warmth."], ["Entrance lobby", "A buffer porch or airlock at the main door keeps cold air out."]);
+    tips.forEach(function (t) { checks.push({ status: "tip", title: t[0], text: t[1] }); });
+
     const siteTips = [
       "Collect rainwater from the roof into the underground sump or a recharge pit (required in many Indian cities); Vastu prefers it in the north / north-east.",
       "Use permeable paving or grass pavers; keep dark, hard paving away from west and south walls.",
@@ -172,7 +295,8 @@ window.App = window.App || {};
       "Walls on the hot " + hottest.dirName + " side: " + hottest.wall.short + ".",
     ];
     if (vent.stack) key.push("Open centre (Brahmasthan) as a courtyard or skylight for stack ventilation.");
-    return { zone: zone, zoneLabel: S.NBC_ZONES[zone].label, footprint: fp, sides: sides, roof: roof, vent: vent, site: siteTips, key: key };
+    return { zone: zone, zoneLabel: S.NBC_ZONES[zone].label, footprint: fp, sides: sides, roof: roof, roofOptions: roofOptions(zone), vent: vent,
+      windows: windows, roomWin: roomWin, partition: PARTITION, checks: checks, openShare: openShare, site: siteTips, key: key };
   };
 
   App.planStrategies.shadeFor = shadeFor;

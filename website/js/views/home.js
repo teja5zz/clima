@@ -42,12 +42,12 @@
       const b = window.BRAND;
       const ds = App.state.ds;
       return '<section class="hero">' +
-        '<div class="hero-text"><p class="eyebrow">' + App.esc(b.company) + "</p>" +
-        "<h1>" + App.esc(b.product) + "</h1>" +
-        '<p class="hero-lead">' + App.esc(b.tagline) + ". Pick any of 400+ Indian weather stations to see the climate, check comfort with the India Model for Adaptive Comfort, and place every room using Vastu and building science together.</p>" +
-        '<div class="hero-cta"><button class="btn primary" type="button" data-scroll="stations">Find my city</button><a class="btn" href="#/vastu">Vastu × Science planner</a></div>' +
-        '<ul class="hero-points"><li>405 Indian weather stations, one click away</li><li>Vastu wheel combined with real sun, heat and wind data</li><li>Your plans and files stay on your device</li></ul></div>' +
-        '<div class="hero-art" aria-hidden="true">' + heroSvg() + "</div></section>" +
+        '<div class="hero-text"><img class="hero-word" src="' + App.esc(b.wordmarkLight || "") + '" alt="' + App.esc(b.company) + '" width="196" height="104">' +
+        '<p class="eyebrow">' + App.esc(b.product) + "</p>" +
+        "<h1>" + App.esc(b.tagline) + "</h1>" +
+        '<p class="hero-lead">Pick any of 400+ Indian weather stations to see your climate, check comfort with the India Model for Adaptive Comfort, and plan every room with Vastu and building science together — with shading, ventilation and materials worked out for your site.</p>' +
+        '<div class="hero-cta"><button class="btn light" type="button" data-scroll="stations">Find my city</button><a class="btn outline-light" href="#/vastu">Open the Vastu × Science planner →</a></div>' +
+        '<ul class="hero-points"><li>400+ Indian weather stations</li><li>Vastu × climate room placement</li><li>Plans and files stay on your device</li></ul></div></section>' +
 
         App.card("1 · Choose your location", stationFinder(), { id: "stations",
           lead: "Search a city, district or state, or use your location. We list the nearest weather stations; press <strong>Analyse</strong> to load one. Files come from Climate.OneBuilding.org and EnergyPlus (ISHRAE / IWEC)." }) +
@@ -188,10 +188,10 @@
     const data = [
       { type: "scattergeo", lat: stations.map(function (s) { return s.lat; }), lon: stations.map(function (s) { return s.lon; }),
         text: stations.map(function (s) { return s.n + (s.st ? ", " + s.st : ""); }), mode: "markers", name: "Weather stations",
-        marker: { size: 5, color: "#1f2a44", opacity: 0.45 }, hovertemplate: "%{text}<extra></extra>" },
+        marker: { size: 5, color: "#173a2a", opacity: 0.45 }, hovertemplate: "%{text}<extra></extra>" },
       { type: "scattergeo", lat: sel.map(function (s) { return s.lat; }), lon: sel.map(function (s) { return s.lon; }),
         text: sel.map(function (s) { return s.n; }), mode: "markers", name: "Results",
-        marker: { size: 11, color: "#e8801a", line: { color: "#fff", width: 1.2 } }, hovertemplate: "%{text}<extra>result</extra>" },
+        marker: { size: 11, color: "#2f7d4f", line: { color: "#fff", width: 1.2 } }, hovertemplate: "%{text}<extra>result</extra>" },
     ];
     if (anchor) data.push({ type: "scattergeo", lat: [anchor.lat], lon: [anchor.lon], text: [anchor.label], mode: "markers", name: anchor.label,
       marker: { size: 14, symbol: "star", color: "#c92a42", line: { color: "#fff", width: 1 } }, hovertemplate: "%{text}<extra></extra>" });
@@ -212,24 +212,4 @@
     }
   }
 
-  function heroSvg() {
-    return '<svg viewBox="0 0 320 260" role="img"><defs><linearGradient id="hg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#fde7cf"/><stop offset="1" stop-color="#fbf6ee"/></linearGradient></defs>' +
-      '<rect x="0" y="0" width="320" height="260" rx="20" fill="url(#hg)"/>' +
-      // vastu wheel ring
-      '<g transform="translate(160 150)">' +
-      ["#7fc6b5", "#a8cbe0", "#a6d18f", "#f4d36b", "#f2a98c", "#c58b77", "#b19ad7", "#d3a9c4"].map(function (c, i) {
-        const a0 = (i * 45 - 22.5 - 90) * Math.PI / 180, a1 = (i * 45 + 22.5 - 90) * Math.PI / 180, R = 104, r = 88;
-        return '<path d="M' + (R * Math.cos(a0)).toFixed(1) + " " + (R * Math.sin(a0)).toFixed(1) + " A" + R + " " + R + " 0 0 1 " + (R * Math.cos(a1)).toFixed(1) + " " + (R * Math.sin(a1)).toFixed(1) +
-          " L" + (r * Math.cos(a1)).toFixed(1) + " " + (r * Math.sin(a1)).toFixed(1) + " A" + r + " " + r + " 0 0 0 " + (r * Math.cos(a0)).toFixed(1) + " " + (r * Math.sin(a0)).toFixed(1) + 'Z" fill="' + c + '"/>';
-      }).join("") +
-      '<text x="0" y="-108" text-anchor="middle" font-size="11" font-weight="700" fill="#1f2a44">N</text></g>' +
-      '<path d="M78 160 A84 70 0 0 1 242 160" fill="none" stroke="#e8801a" stroke-width="2" stroke-dasharray="4 6"/>' +
-      '<circle cx="210" cy="104" r="14" fill="#f5a524"/>' +
-      '<rect x="112" y="150" width="96" height="52" fill="#1f2a44"/><polygon points="104,152 160,118 216,152" fill="#e8801a"/>' +
-      '<rect x="124" y="166" width="16" height="18" fill="#fbf6ee"/><rect x="180" y="166" width="16" height="18" fill="#fbf6ee"/>' +
-      '<rect x="152" y="172" width="16" height="30" fill="#fbf6ee" opacity=".85"/>' +
-      '<path d="M40 120 q22 -6 44 0 t44 0" fill="none" stroke="#1f8a9e" stroke-width="2" opacity="0.7"/>' +
-      '<path d="M48 106 q22 -6 44 0 t44 0" fill="none" stroke="#1f8a9e" stroke-width="2" opacity="0.4"/>' +
-      '<rect x="40" y="202" width="240" height="4" rx="2" fill="#a8a29e"/></svg>';
-  }
 })(window.App);

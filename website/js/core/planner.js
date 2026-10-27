@@ -436,6 +436,7 @@ window.App = window.App || {};
     const s = state.site;
     return { v: 2, u: s.units, W: R2(s.W), D: R2(s.D), f: s.facing, fi: s.fine || 0, c: s.corner || 0,
       sb: [R2(s.set.front), R2(s.set.rear), R2(s.set.left), R2(s.set.right)], w: Math.round(state.weight * 100),
+      nm: state.name ? String(state.name).slice(0, 60) : undefined,
       i: state.items.map(function (it) {
         const a = [it.t, R2(it.x), R2(it.y)];
         if (it.w) a.push(R2(it.w), R2(it.h));
@@ -461,7 +462,7 @@ window.App = window.App || {};
       if (a[5]) it.n = String(a[5]).slice(0, 40);
       return it;
     });
-    return { site: site, items: items, weight: o.w == null ? 0.5 : num(o.w, 0, 100) / 100 };
+    return { site: site, items: items, weight: o.w == null ? 0.5 : num(o.w, 0, 100) / 100, name: o.nm ? String(o.nm).slice(0, 60) : "" };
   };
   P.serialize = function (state) {
     return btoa(unescape(encodeURIComponent(JSON.stringify(P.pack(state))))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");

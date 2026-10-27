@@ -3,20 +3,21 @@
    Every page, title, footer and export picks these values up.
    ============================================================ */
 window.BRAND = {
-  company: "Tejas Constructions",
+  company: "trikrt",
+  wordmark: "img/trikrt-wordmark.svg",          // dark wordmark (header)
+  wordmarkLight: "img/trikrt-wordmark-white.svg", // white wordmark (hero, footer)
+  mark: "img/trikrt-mark.svg",                  // square icon
   product: "Climate & Vastu Studio",
-  owner: "Tejas P R, BE, MS — Chartered Structural Engineer · Proprietor",
-  shortMark: "TC",                       // shown only if the logo image is missing
-  logo: "img/logo-tc.png",
-  tagline: "Science-backed, Vastu-aware design decisions for Indian buildings",
+  owner: "Tejas P R, BE, MS — Chartered Structural Engineer",
+  tagline: "Climate-smart, Vastu-aware design for Indian homes",
   website: "https://www.tejas-constructions.in",
   email: "info@tejas-constructions.in",
   phone: "+91 81975 17555",
   address: "#345, 14th Main, 5th Cross, First floor, Saraswathipuram, Mysore – 570009",
-  services: ["Structural Design", "Turnkey Projects", "Joint Ventures", "Construction Services", "Project Estimation"],
-  motto: "Right orientation · Better planning · Harmonious living",
-  accent: "#e8801a",                     // brand orange (text-safe shade of the logo orange)
-  ink: "#1f2a44",                        // brand navy
+  services: ["Climate-responsive design", "Vastu planning", "Structural design", "Turnkey projects", "Project estimation"],
+  motto: "Build with the sun, the wind and the land",
+  accent: "#2f7d4f",                     // forest green (text-safe on white)
+  ink: "#173a2a",                        // deep forest
   year: new Date().getFullYear(),
 };
 
