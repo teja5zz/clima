@@ -5,13 +5,15 @@
   "use strict";
   const P = App.Plan, FT = P.FT, DIRS = P.DIRS, Z = App.VASTU_ZONES;
   const STORE = "tc-vastu-plan-v2";
-  const STEPS = [["site", "Site"], ["rooms", "Rooms"], ["arrange", "Arrange"], ["report", "Report"]];
+  const STEPS = [["site", "Site"], ["rooms", "Rooms"], ["arrange", "Arrange"], ["climate", "Climate"], ["report", "Report"]];
+  const REPORT = 4, CLIMATE = 3;
   const QUICK_SIZES = [[30, 40], [30, 50], [40, 60], [50, 80], [60, 90]];
   const DIR_NAMES = { N: "North", NE: "North-East", E: "East", SE: "South-East", S: "South", SW: "South-West", W: "West", NW: "North-West" };
 
   const st = {
     loaded: false, step: 0, site: null, items: [], weight: 0.5, sel: null, zoneInfo: null, touched: false,
-    show: { zones: true, climate: true, dims: true }, underlay: null, underlayOpacity: 0.5,
+    show: { zones: true, climate: true, dims: true, shade: true, mat: true, vent: true, trees: true },
+    underlay: null, underlayOpacity: 0.5, underlayFit: "plot", trace: false, tool: null,
     hist: [], fut: [], locOpen: false,
   };
   let root = null, metrics = null, drag = null, keysBound = false;
@@ -42,6 +44,10 @@
   }
   function load() {
     st.loaded = true;
+    try {
+      const img = JSON.parse(localStorage.getItem(STORE + "-img") || "null");
+      if (img && /^data:image\//.test(img.src)) { st.underlay = img.src; st.underlayFit = img.fit === "building" ? "building" : "plot"; st.underlayOpacity = +img.op || 0.5; }
+    } catch (e) { /* ignore */ }
     const m = location.hash.match(/[?&]plan=([A-Za-z0-9_-]+)/);
     if (m) {
       try { Object.assign(st, P.deserialize(m[1])); st.touched = true; st.step = 2; return; }
@@ -56,6 +62,7 @@
     arrange();
   }
   function arrange() { st.items = P.autoArrange(ctx(), st.items); st.touched = false; }
+  function fp() { return P.footprint(st.site, st.items); }
   function find(uid) { return st.items.find(function (it) { return it.uid === uid; }) || null; }
   function def(it) { return App.VASTU_ROOM[it.t]; }
   function name(it) { return it.n || it.auto || def(it).label; }
@@ -107,7 +114,7 @@
   function renderAll() {
     if (!root || !root.isConnected) return;
     renderSteps();
-    const report = st.step === 3;
+    const report = st.step === REPORT;
     App.$("#pl-work", root).hidden = report;
     App.$("#pl-report", root).hidden = !report;
     if (report) { renderReport(); return; }
@@ -116,7 +123,8 @@
 
   function renderSteps() {
     const ev = P.evaluate(ctx(), st.items);
-    const counts = [null, st.items.length + " items", ev.issues.filter(function (i) { return i.sev === "error"; }).length ? "needs fixes" : "scored " + pct(ev.total), null];
+    const counts = [null, st.items.length + " items", ev.issues.filter(function (i) { return i.sev === "error"; }).length ? "needs fixes" : "scored " + pct(ev.total),
+      App.state.ds ? App.S.NBC_ZONES[App.state.ds.nbc.zone].label : "pick a city", null];
     App.$("#pl-steps", root).innerHTML = STEPS.map(function (s, i) {
       return '<button type="button" class="pl-step' + (i === st.step ? " on" : "") + (i < st.step ? " done" : "") + '" data-act="step" data-step="' + i + '"' + (i === st.step ? ' aria-current="step"' : "") + ">" +
         '<span class="pl-step-n">' + (i < st.step ? "✓" : i + 1) + '</span><span class="pl-step-t">' + s[1] + (counts[i] ? '<small>' + counts[i] + "</small>" : "") + "</span></button>";
@@ -138,11 +146,18 @@
       '<div class="pl-tools"><button type="button" class="icon-btn" data-act="undo" title="Undo (Ctrl+Z)" aria-label="Undo"' + (st.hist.length ? "" : " disabled") + ">↶</button>" +
       '<button type="button" class="icon-btn" data-act="redo" title="Redo (Ctrl+Y)" aria-label="Redo"' + (st.fut.length ? "" : " disabled") + ">↷</button>" +
       '<button type="button" class="btn sm" data-act="auto" title="Place every room in its best zone">✦ Auto-arrange</button>' +
-      tog("zones", "Zones") + (metrics ? tog("climate", "Sun & wind") : "") + tog("dims", "Sizes") + "</div>";
+      (st.step === CLIMATE && metrics ? tog("shade", "Shading") + tog("mat", "Materials") + tog("vent", "Breeze") + tog("trees", "Planting") + tog("zones", "Zones")
+        : tog("zones", "Zones") + (metrics ? tog("climate", "Sun & wind") : "") + tog("dims", "Sizes")) + "</div>";
   }
 
   function renderLegend() {
     let h = '<span><i class="lg-dot good"></i>Vastu preferred</span><span><i class="lg-dot ok"></i>Acceptable / neutral</span><span><i class="lg-dot bad"></i>Vastu avoid</span>';
+    if (st.step === CLIMATE && metrics) {
+      h = '<span><i class="lg-mat high"></i>Hot wall — insulate</span><span><i class="lg-mat mid"></i>Moderate</span><span><i class="lg-mat low"></i>Cool / standard</span>' +
+        '<span><i class="lg-chajja"></i>Chajja to scale</span><span><i class="lg-wind">➜</i>Breeze in / out</span><span><i class="lg-tree"></i>Shade trees</span>';
+      App.$("#pl-legend", root).innerHTML = h;
+      return;
+    }
     if (metrics && st.show.climate) h += '<span><i class="lg-heat"></i>Afternoon heat on that side</span><span><i class="lg-wind">➜</i>Warm-weather breeze</span>';
     h += '<span class="muted">Drag to move · corner handles resize · arrow keys nudge (Shift = faster) · R rotate · Del remove</span>';
     App.$("#pl-legend", root).innerHTML = h;
@@ -154,7 +169,7 @@
     const el = App.$("#pl-panel", root), active = document.activeElement, inside = active && el.contains(active);
     const focusables = function () { return App.$$("input, select, button, a[href]", el); };
     const fid = inside ? active.id : null, fidx = inside ? focusables().indexOf(active) : -1;
-    el.innerHTML = [panelSite, panelRooms, panelArrange][st.step]();
+    el.innerHTML = [panelSite, panelRooms, panelArrange, panelClimate][st.step]();
     const f = fid ? document.getElementById(fid) : fidx >= 0 ? focusables()[Math.min(fidx, focusables().length - 1)] : null;
     if (f) f.focus({ preventScroll: true });
   }
@@ -164,20 +179,23 @@
     return '<div class="field"><label for="' + id + '">' + label + '</label><div class="pl-unit"><input type="number" id="' + id + '" data-act="' + (opts.act || id) + '" value="' + uVal(m) + '" min="' + (opts.min || 0) + '" step="' + (ft() ? 0.5 : 0.1) + '" inputmode="decimal"><span>' + uName() + "</span></div></div>";
   }
 
-  function panelSite() {
-    const s = st.site, ds = App.state.ds, dirOf = DIRS[P.dirIndex(s.facing)];
-    let loc;
+  function locBlock() {
+    const ds = App.state.ds;
     if (ds && !st.locOpen) {
       const z = App.S.NBC_ZONES[ds.nbc.zone];
-      loc = '<div class="pl-loc"><div><b>' + App.esc(ds.meta.city) + '</b><span class="zone-chip" style="--z:' + z.color + '">' + z.label + "</span>" +
+      return '<div class="pl-loc"><div><b>' + App.esc(ds.meta.city) + '</b><span class="zone-chip" style="--z:' + z.color + '">' + z.label + "</span>" +
         '<div class="small muted">Sun, heat and breeze from this weather file score every room.</div></div><button type="button" class="btn sm ghost" data-act="loc-open">Change</button></div>';
-    } else {
-      loc = '<div class="pl-locpick"><label for="pl-city" class="sr">City</label><input type="search" id="pl-city" list="pl-cities" placeholder="Type your city, e.g. Mysuru" autocomplete="off">' +
-        '<datalist id="pl-cities">' + App.INDIA_CITIES.map(function (c) { return '<option value="' + App.esc(c.city) + '">' + App.esc(c.state) + "</option>"; }).join("") + "</datalist>" +
-        '<div class="btn-row tight"><button type="button" class="btn sm primary" data-act="loc-go">Load climate</button><button type="button" class="btn sm" data-act="loc-near">⌖ Near me</button>' +
-        (ds ? '<button type="button" class="btn sm ghost" data-act="loc-close">Cancel</button>' : "") + "</div>" +
-        '<p class="small muted">' + (ds ? "" : "Without a city the plan is scored by Vastu only. ") + "We use the nearest of 405 Indian weather stations.</p></div>";
     }
+    return '<div class="pl-locpick"><label for="pl-city" class="sr">City</label><input type="search" id="pl-city" list="pl-cities" placeholder="Type your city, e.g. Mysuru" autocomplete="off">' +
+      '<datalist id="pl-cities">' + App.INDIA_CITIES.map(function (c) { return '<option value="' + App.esc(c.city) + '">' + App.esc(c.state) + "</option>"; }).join("") + "</datalist>" +
+      '<div class="btn-row tight"><button type="button" class="btn sm primary" data-act="loc-go">Load climate</button><button type="button" class="btn sm" data-act="loc-near">⌖ Near me</button>' +
+      (ds ? '<button type="button" class="btn sm ghost" data-act="loc-close">Cancel</button>' : "") + "</div>" +
+      '<p class="small muted">' + (ds ? "" : "Without a city the plan is scored by Vastu only. ") + "We use the nearest of 400+ Indian weather stations.</p></div>";
+  }
+
+  function panelSite() {
+    const s = st.site, ds = App.state.ds, dirOf = DIRS[P.dirIndex(s.facing)];
+    const loc = locBlock();
     const dirBtn = function (d) {
       return '<button type="button" class="pl-dir' + (d === dirOf ? " on" : "") + '" data-act="facing" data-az="' + DIRS.indexOf(d) * 45 + '" aria-pressed="' + (d === dirOf) + '">' + d + "</button>";
     };
@@ -201,11 +219,23 @@
       '<section class="pl-sec"><h3>Setbacks</h3><p class="small muted">Open space your local bylaw requires on each side (e.g. MUDA, BBMP). The dashed line on the drawing is where the building can go.</p>' +
       '<div class="pl-row2">' + numField("pl-sf", "Front (road)", s.set.front, { act: "set", min: 0 }) + numField("pl-sr", "Rear", s.set.rear, { act: "set" }) +
       numField("pl-sl", "Left", s.set.left, { act: "set" }) + numField("pl-sR", "Right", s.set.right, { act: "set" }) + "</div></section>" +
-      '<section class="pl-sec"><h3>Your drawing <span class="muted small">(optional)</span></h3>' +
-      '<p class="small muted">Trace over an existing plan: crop the image to the plot boundary, then upload or drop it on the drawing. It stays on your device.</p>' +
-      '<input type="file" id="pl-img" accept="image/*" data-act="underlay">' +
-      (st.underlay ? '<div class="field"><label for="pl-op">Image opacity</label><input type="range" id="pl-op" data-act="underlay-op" min="0.1" max="1" step="0.05" value="' + st.underlayOpacity + '"></div><button type="button" class="btn sm ghost" data-act="underlay-clear">Remove image</button>' : "") +
-      "</section>" + nextBtn("Next: choose rooms");
+      nextBtn("Next: choose rooms");
+  }
+
+  // "Have a drawing already?": upload a plan image, fit it, then trace its rooms.
+  function traceIntro() {
+    return '<section class="pl-sec pl-trace"><h3>Have a plan drawing already?</h3>' +
+      '<p class="small muted">Upload a photo or scan of your plan, then draw a box over each room. The planner checks it for Vastu and adds climate strategies and materials for your site. The image stays on your device.</p>' +
+      '<label class="btn sm" for="pl-img">⇪ ' + (st.underlay ? "Replace plan image" : "Upload plan image") + '</label><input type="file" id="pl-img" class="sr" accept="image/*" data-act="underlay">' +
+      (st.underlay ? underlayControls() + '<div class="btn-row tight"><button type="button" class="btn sm primary" data-act="trace-start">✎ Trace rooms on my plan</button></div>' : "") + "</section>";
+  }
+  function underlayControls() {
+    return '<div class="field"><label for="pl-fit">The image shows</label><select id="pl-fit" data-act="underlay-fit">' +
+      [["plot", "the whole plot (to the compound wall)"], ["building", "the building only (inside the setbacks)"]].map(function (o) {
+        return '<option value="' + o[0] + '"' + (st.underlayFit === o[0] ? " selected" : "") + ">" + o[1] + "</option>";
+      }).join("") + '</select><small class="muted">Crop the image to that boundary first, and set the plot size and facing in step 1.</small></div>' +
+      '<div class="field"><label for="pl-op">Image opacity</label><input type="range" id="pl-op" data-act="underlay-op" min="0.1" max="1" step="0.05" value="' + st.underlayOpacity + '"></div>' +
+      '<button type="button" class="btn sm ghost" data-act="underlay-clear">Remove image</button>';
   }
 
   function nextBtn(label) {
@@ -227,8 +257,8 @@
           "<output>" + n + '</output><button type="button" data-act="inc" data-t="' + r.id + '" aria-label="Add ' + r.label + '">+</button></div></li>';
       }).join("") + "</ul>";
     };
-    return '<h2 class="pl-h">2 · Rooms you need</h2>' +
-      '<section class="pl-sec"><h3>Start from a house type</h3><div class="pl-presets">' + App.VASTU_PRESETS.map(function (p) {
+    return '<h2 class="pl-h">2 · Rooms you need</h2>' + traceIntro() +
+      '<section class="pl-sec"><h3>…or start from a house type</h3><div class="pl-presets">' + App.VASTU_PRESETS.map(function (p) {
         return '<button type="button" class="pl-preset" data-act="preset" data-p="' + p.id + '"><b>' + p.label + "</b><small>" + p.items.length + " items</small></button>";
       }).join("") + "</div></section>" +
       '<section class="pl-sec"><div class="pl-meter ' + (share > 0.95 ? "bad" : share > 0.8 ? "ok" : "good") + '"><div class="pl-meter-bar"><span style="width:' + Math.min(100, Math.round(share * 100)) + '%"></span></div>' +
@@ -246,6 +276,7 @@
   function panelArrange() {
     const c = ctx(), ev = P.evaluate(c, st.items), it = find(st.sel);
     let h = '<h2 class="pl-h">3 · Arrange</h2>';
+    if (st.trace) h += tracePanel();
     h += '<section class="pl-sec"><div class="field"><label for="pl-weight">Balance: <output>' + (metrics ? (st.weight === 0.5 ? "equal" : st.weight > 0.5 ? Math.round(st.weight * 100) + " % Vastu" : Math.round((1 - st.weight) * 100) + " % science") : "Vastu only — pick a city to add climate") + "</output></label>" +
       '<input type="range" id="pl-weight" data-act="weight" min="0" max="100" step="5" value="' + Math.round(st.weight * 100) + '"' + (metrics ? "" : " disabled") + '><div class="range-ends"><span>Building science</span><span>Vastu</span></div></div>' +
       '<button type="button" class="btn sm" data-act="auto">✦ Auto-arrange with this balance</button></section>';
@@ -257,6 +288,57 @@
     }
     h += nextBtn("Next: report");
     return h;
+  }
+
+  function tracePanel() {
+    const tool = st.tool && App.VASTU_ROOM[st.tool];
+    return '<section class="pl-sec pl-trace on"><h3>✎ Tracing your plan</h3>' +
+      '<p class="small">' + (tool ? (tool.kind === "room" ? "Drag a box over the <b>" + tool.label + "</b> on your drawing." : "Tap where the <b>" + tool.label + "</b> is.") + " Pick another type when done."
+        : "Pick a room type, then drag a box over that room on your drawing. For the entrance and tanks, pick and tap.") + "</p>" +
+      '<div class="pl-palette">' + App.VASTU_ROOMS.map(function (r) {
+        return '<button type="button" class="pl-tool' + (st.tool === r.id ? " on" : "") + '" data-act="tool" data-t="' + r.id + '" aria-pressed="' + (st.tool === r.id) + '"><i class="sw" style="background:' + r.color + '"></i>' + r.short + "</button>";
+      }).join("") + "</div>" +
+      (st.underlay ? '<div class="field"><label for="pl-op">Image opacity</label><input type="range" id="pl-op" data-act="underlay-op" min="0.1" max="1" step="0.05" value="' + st.underlayOpacity + '"></div>' : "") +
+      '<div class="btn-row tight"><button type="button" class="btn sm primary" data-act="trace-done">✓ Done tracing</button>' +
+      (metrics ? '<button type="button" class="btn sm" data-act="trace-climate">Climate strategies →</button>' : "") + "</div></section>";
+  }
+
+  /* ---------- climate strategies ---------- */
+  function strategies() {
+    return metrics ? App.planStrategies(App.state.ds, metrics, st.site, st.items) : null;
+  }
+  const HEAT = { high: "Hot", mid: "Moderate", low: "Cool" };
+  function sideChip(x) {
+    return '<span class="pl-sidehead"><span class="pl-zchip" style="--z:' + App.zoneById(x.dir).color + '">' + x.dirName + '</span><span class="tag heat-' + x.heat + '">' + HEAT[x.heat] + "</span></span>";
+  }
+  function panelClimate() {
+    let h = '<h2 class="pl-h">4 · Climate strategies</h2>';
+    if (!metrics) {
+      return h + '<section class="pl-sec"><p>Pick your city to see shading, ventilation, materials and planting worked out from its weather data.</p>' + locBlock() + "</section>" + nextBtn("Next: report");
+    }
+    const sx = strategies(), it = find(st.sel);
+    h += '<section class="pl-sec"><p class="small muted">From the ' + App.esc(App.state.ds.meta.city) + ' weather file · ' + sx.zoneLabel + ' climate (NBC 2016). Drawn on the plan: walls coloured by heat, chajjas to scale, breeze in/out and planting.</p>' +
+      '<h3>Key moves</h3><ol class="pl-key">' + sx.key.map(function (k) { return "<li>" + App.esc(k) + "</li>"; }).join("") + "</ol></section>";
+    if (it && def(it).kind === "room") {
+      const fac = P.facades(st.site, it, null, fp()), d = def(it);
+      h += '<section class="pl-sec pl-roomtips"><h3><i class="sw" style="background:' + d.color + '"></i>' + App.esc(name(it)) + "</h3>" +
+        (fac.length ? fac.map(function (f) {
+          const x = sx.sides.find(function (y) { return y.side === f.side; });
+          return '<p class="small">' + sideChip(x) + "<br><b>Window:</b> " + App.esc(x.window) + " <b>Shade:</b> " + App.esc(x.shade.short) + " mm. <b>Wall:</b> " + App.esc(x.wall.short) + "." +
+            (x.windward ? " <b>Breeze inlet.</b>" : x.leeward ? " <b>Breeze outlet.</b>" : "") + "</p>";
+        }).join("") : '<p class="small">No outside wall: ventilate through a high ventilator, a jaali to the passage, or a skylight.</p>') + "</section>";
+    }
+    h += '<section class="pl-sec"><h3>Shading — each wall</h3><ul class="pl-slist">' + sx.sides.map(function (x) {
+      return "<li>" + sideChip(x) + "<span>" + App.esc(x.shade.text) + "</span></li>";
+    }).join("") + "</ul></section>";
+    h += '<section class="pl-sec"><h3>Materials</h3><ul class="pl-slist">' + sx.sides.map(function (x) {
+      return "<li>" + sideChip(x) + "<span><b>Wall:</b> " + App.esc(x.wall.text) + "<br><b>Windows:</b> " + App.esc(x.window) + "</span></li>";
+    }).join("") + '<li><span class="pl-zchip" style="--z:#ced4da">Roof</span><span>' + App.esc(sx.roof.text) + "</span></li></ul></section>";
+    h += '<section class="pl-sec"><h3>Ventilation</h3><ul class="tips small">' + sx.vent.tips.map(function (t) { return "<li>" + App.esc(t) + "</li>"; }).join("") + "</ul></section>";
+    h += '<section class="pl-sec"><h3>Planting & site</h3><ul class="pl-slist">' + sx.sides.map(function (x) {
+      return "<li>" + sideChip(x) + "<span>" + App.esc(x.plant.text) + "</span></li>";
+    }).join("") + "</ul><ul class=\"tips small\">" + sx.site.map(function (t) { return "<li>" + App.esc(t) + "</li>"; }).join("") + "</ul></section>";
+    return h + nextBtn("Next: report");
   }
 
   function inspector(c, ev, it) {
@@ -306,8 +388,8 @@
   }
 
   /* ---------- drawing ---------- */
-  function view() {
-    const s = st.site, m = Math.max(s.W, s.D) * 0.1 + 0.8, road = Math.max(2, Math.min(s.W, s.D) * 0.12);
+  function view(strat) {
+    const s = st.site, m = Math.max(s.W, s.D) * (strat ? 0.13 : 0.1) + (strat ? 1.8 : 0.8), road = Math.max(2, Math.min(s.W, s.D) * 0.12);
     return { x: -m - (s.corner === "left" ? road : 0), y: -m, w: s.W + 2 * m + (s.corner ? road : 0), h: s.D + 2 * m + road, m: m, road: road };
   }
 
@@ -320,7 +402,8 @@
 
   function svgMarkup(opts) {
     opts = opts || {};
-    const s = st.site, W = s.W, D = s.D, v = view(), b = P.buildable(s), c = ctx(), ev = P.evaluate(c, st.items);
+    const strat = metrics && (opts.strat || (!opts.static && st.step === CLIMATE)) ? strategies() : null;
+    const s = st.site, W = s.W, D = s.D, v = view(!!strat), b = P.buildable(s), c = ctx(), ev = P.evaluate(c, st.items);
     const fs = Math.max(0.3, Math.min(W, D) / 26), cx = W / 2, cy = D / 2, R = W + D;
     const idp = opts.static ? "plr-" : "pl-";
     const f = function (n) { return (Math.round(n * 1000) / 1000).toString(); };
@@ -337,7 +420,7 @@
         '<text class="pl-roadtxt" transform="translate(' + f(x + v.road / 2) + " " + f(cy) + ') rotate(-90)" font-size="' + f(fs * 0.85) + '">ROAD</text>';
     }
     // climate edges
-    if (metrics && st.show.climate) {
+    if (metrics && st.show.climate && !strat) {
       const band = Math.max(0.25, v.m * 0.16), gap = v.m * 0.08;
       [["top", 0, -gap - band, W, band], ["bottom", 0, D + gap, W, band], ["left", -gap - band, 0, band, D], ["right", W + gap, 0, band, D]].forEach(function (e) {
         const k = P.sideDir(s, e[0]), heat = metrics.norm.pmHotSun[k];
@@ -351,10 +434,13 @@
     }
     // plot
     g += '<rect class="pl-plot" x="0" y="0" width="' + f(W) + '" height="' + f(D) + '"/>';
-    if (st.underlay && !opts.static) g += '<image href="' + st.underlay + '" x="0" y="0" width="' + f(W) + '" height="' + f(D) + '" preserveAspectRatio="none" opacity="' + st.underlayOpacity + '"/>';
+    if (st.underlay && !opts.static) {
+      const ib = st.underlayFit === "building" ? b : { x0: 0, y0: 0, x1: W, y1: D };
+      g += '<image href="' + st.underlay + '" x="' + f(ib.x0) + '" y="' + f(ib.y0) + '" width="' + f(ib.x1 - ib.x0) + '" height="' + f(ib.y1 - ib.y0) + '" preserveAspectRatio="none" opacity="' + st.underlayOpacity + '"/>';
+    }
     // zones
-    if (st.show.zones || opts.static) {
-      g += '<g clip-path="url(#' + idp + 'clip)" class="pl-zones">';
+    if (st.show.zones || (opts.static && !strat)) {
+      g += '<g clip-path="url(#' + idp + 'clip)" class="pl-zones' + (strat ? " faint" : "") + '">';
       Z.forEach(function (z) {
         const pts = [[cx, cy]];
         for (let a = -22.5; a <= 22.51; a += 11.25) {
@@ -372,7 +458,7 @@
     }
     g += '<rect class="pl-build" x="' + f(b.x0) + '" y="' + f(b.y0) + '" width="' + f(b.x1 - b.x0) + '" height="' + f(b.y1 - b.y0) + '"/>';
     // plot dimensions
-    if (st.show.dims || opts.static) {
+    if ((st.show.dims || opts.static) && !strat) {
       g += '<text class="pl-dim" x="' + f(cx) + '" y="' + f(-v.m * 0.45) + '" font-size="' + f(fs * 0.8) + '">' + len(W) + "</text>" +
         '<text class="pl-dim" transform="translate(' + f(W + v.m * (s.corner === "right" ? 0.2 : 0.55)) + " " + f(cy) + ') rotate(90)" font-size="' + f(fs * 0.8) + '">' + len(D) + "</text>";
     }
@@ -404,7 +490,7 @@
         });
         g += "</g>";
       } else if (d.kind === "door") {
-        const side = P.doorSide(s, it), half = 0.5, horiz = side === "top" || side === "bottom";
+        const side = P.doorSide(s, it, fp()), half = 0.5, horiz = side === "top" || side === "bottom";
         const x0 = horiz ? it.x - half : it.x, x1 = horiz ? it.x + half : it.x, y0 = horiz ? it.y : it.y - half, y1 = horiz ? it.y : it.y + half;
         const inward = { top: [0, 1], bottom: [0, -1], left: [1, 0], right: [-1, 0] }[side];
         const sx = x0 + inward[0] * 1, sy = y0 + inward[1] * 1;
@@ -422,6 +508,13 @@
           '<text class="pl-ftxt" x="' + f(it.x) + '" y="' + f(it.y + r + fs * 0.6) + '" font-size="' + f(fs * 0.62) + '">' + App.esc(nm) + "</text></g>";
       }
     });
+    if (strat) g += strategyLayer(strat, { W: W, D: D, b: b, v: v, fs: fs, f: f, idp: idp, static: opts.static });
+    // tracing: box being drawn
+    if (drag && drag.mode === "draw" && drag.rect && !opts.static) {
+      const r = drag.rect;
+      g += '<rect class="pl-ghost" x="' + f(r.x) + '" y="' + f(r.y) + '" width="' + f(r.w) + '" height="' + f(r.h) + '"/>' +
+        '<text class="pl-rdim" x="' + f(r.x + r.w / 2) + '" y="' + f(r.y + r.h / 2) + '" font-size="' + f(fs * 0.8) + '">' + len(r.w) + " × " + len(r.h) + "</text>";
+    }
     // compass
     const cr = Math.min(v.m * 0.36, Math.max(W, D) * 0.08), ccx = W + v.m * 0.5 + (s.corner === "right" ? v.road : 0) - cr * 0.2, ccy = -v.m * 0.5;
     g += '<g class="pl-compass" transform="translate(' + f(Math.min(ccx, v.x + v.w - cr * 1.1)) + " " + f(ccy) + ')"><circle r="' + f(cr) + '"/>' +
@@ -430,11 +523,103 @@
     return { body: g, vb: f(v.x) + " " + f(v.y) + " " + f(v.w) + " " + f(v.h) };
   }
 
+  // Climate strategies drawn on the plan: wall colours by exposure with material labels,
+  // chajjas to scale, breeze inlets / outlets, stack vent and planting.
+  const HEAT_COLOR = { high: "#e03131", mid: "#f08c00", low: "#2f9e44" };
+  function strategyLayer(sx, o) {
+    const s = st.site, W = o.W, D = o.D, b = sx.footprint, v = o.v, fs = o.fs * 1.25, f = o.f;
+    const out = { top: [0, -1], bottom: [0, 1], left: [-1, 0], right: [1, 0] };
+    let g = '<g class="pl-strat">';
+    const bySide = {};
+    sx.sides.forEach(function (x) { bySide[x.side] = x; });
+    const rooms = st.items.filter(function (it) { return def(it).kind === "room"; });
+    // chajjas: drawn to scale outside the building line
+    if (st.show.shade || o.static) sx.sides.forEach(function (x) {
+      const dpt = x.shade.depth / 1000, n = out[x.side];
+      const r = x.side === "top" ? [b.x0, b.y0 - dpt, b.x1 - b.x0, dpt] : x.side === "bottom" ? [b.x0, b.y1, b.x1 - b.x0, dpt]
+        : x.side === "left" ? [b.x0 - dpt, b.y0, dpt, b.y1 - b.y0] : [b.x1, b.y0, dpt, b.y1 - b.y0];
+      g += '<rect class="pl-chajja" x="' + f(r[0]) + '" y="' + f(r[1]) + '" width="' + f(r[2]) + '" height="' + f(r[3]) + '"><title>' + x.dirName + ": " + App.esc(x.shade.text) + "</title></rect>";
+      if (x.shade.kind === "fins") {
+        const fl = (x.shade.fins || 600) / 1000, horiz = x.side === "top" || x.side === "bottom";
+        const L = horiz ? b.x1 - b.x0 : b.y1 - b.y0, nF = Math.max(2, Math.floor(L / 1.5));
+        for (let i = 1; i < nF; i++) {
+          const t = (horiz ? b.x0 : b.y0) + i * L / nF, base = x.side === "top" ? b.y0 : x.side === "bottom" ? b.y1 : x.side === "left" ? b.x0 : b.x1;
+          g += horiz ? '<line class="pl-fin" x1="' + f(t) + '" y1="' + f(base) + '" x2="' + f(t) + '" y2="' + f(base + n[1] * fl) + '"/>'
+            : '<line class="pl-fin" x1="' + f(base) + '" y1="' + f(t) + '" x2="' + f(base + n[0] * fl) + '" y2="' + f(t) + '"/>';
+        }
+      }
+    });
+    // planting
+    if (st.show.trees || o.static) sx.sides.forEach(function (x) {
+      const n = out[x.side], horiz = x.side === "top" || x.side === "bottom";
+      const sb = { top: s.set.rear, bottom: s.set.front, left: s.set.left, right: s.set.right }[x.side];
+      const edge = x.side === "top" ? 0 : x.side === "bottom" ? D : x.side === "left" ? 0 : W;
+      // trees sit in the setback when it is wide enough, otherwise on the boundary line
+      const r = Math.max(0.6, Math.min(1.3, Math.max(sb, 1) * 0.6)), off = sb >= 2 * r ? -Math.min(sb / 2, 2.5) : r * 0.35;
+      const pos = edge + (horiz ? n[1] : n[0]) * off;
+      if (x.plant.kind === "shade" || x.plant.kind === "deciduous") {
+        const L = horiz ? W : D, nT = Math.max(2, Math.min(4, Math.round(L / 5)));
+        for (let i = 0; i < nT; i++) {
+          const t = (i + 0.5) * L / nT, cx = horiz ? t : pos, cy = horiz ? pos : t;
+          g += '<g class="pl-tree ' + x.plant.kind + '"><title>' + App.esc(x.plant.text) + '</title><circle cx="' + f(cx) + '" cy="' + f(cy) + '" r="' + f(r) + '"/><circle class="trunk" cx="' + f(cx) + '" cy="' + f(cy) + '" r="' + f(r * 0.15) + '"/></g>';
+        }
+      } else if (x.plant.kind === "hedge") {
+        g += horiz ? '<line class="pl-hedge" x1="0.3" y1="' + f(pos) + '" x2="' + f(W - 0.3) + '" y2="' + f(pos) + '"><title>' + App.esc(x.plant.text) + "</title></line>"
+          : '<line class="pl-hedge" x1="' + f(pos) + '" y1="0.3" x2="' + f(pos) + '" y2="' + f(D - 0.3) + '"><title>' + App.esc(x.plant.text) + "</title></line>";
+      }
+    });
+    // walls: each room's outside walls coloured by exposure
+    if (st.show.mat || o.static) rooms.forEach(function (it) {
+      P.facades(s, it, null, sx.footprint).forEach(function (fc) {
+        const x = bySide[fc.side];
+        const seg = fc.side === "top" ? [it.x, it.y, it.x + it.w, it.y] : fc.side === "bottom" ? [it.x, it.y + it.h, it.x + it.w, it.y + it.h]
+          : fc.side === "left" ? [it.x, it.y, it.x, it.y + it.h] : [it.x + it.w, it.y, it.x + it.w, it.y + it.h];
+        g += '<line class="pl-wall" x1="' + f(seg[0]) + '" y1="' + f(seg[1]) + '" x2="' + f(seg[2]) + '" y2="' + f(seg[3]) + '" stroke="' + HEAT_COLOR[x.heat] + '" stroke-width="' + f(Math.max(0.18, fs * 0.42)) + '"><title>' + x.dirName + " wall: " + App.esc(x.wall.text) + "</title></line>";
+      });
+    });
+    // ventilation: inlets on the windward walls, outlets on the leeward walls, a stack vent at the centre
+    if (st.show.vent || o.static) {
+      const arrow = function (uid, side, inward) {
+        const it = find(uid);
+        if (!it) return;
+        const n = out[side], mx = side === "left" ? it.x : side === "right" ? it.x + it.w : it.x + it.w / 2, my = side === "top" ? it.y : side === "bottom" ? it.y + it.h : it.y + it.h / 2;
+        const Lr = Math.max(1, fs * 2.4), sgn = inward ? -1 : 1;
+        const x0 = inward ? mx + n[0] * Lr : mx, y0 = inward ? my + n[1] * Lr : my, x1 = inward ? mx - n[0] * Lr * 0.35 : mx + n[0] * Lr, y1 = inward ? my - n[1] * Lr * 0.35 : my + n[1] * Lr;
+        g += '<line class="pl-vent ' + (inward ? "in" : "out") + '" x1="' + f(x0) + '" y1="' + f(y0) + '" x2="' + f(x1) + '" y2="' + f(y1) + '" stroke-width="' + f(fs * 0.22) + '" marker-end="url(#' + o.idp + 'arrow)"><title>' + (inward ? "Inlet window (lower, smaller)" : "Outlet window (higher, larger)") + "</title></line>";
+        return sgn;
+      };
+      if (sx.vent.windward) sx.vent.inlets.forEach(function (u) { arrow(u, sx.vent.windward, true); });
+      if (sx.vent.leeward) sx.vent.outlets.forEach(function (u) { arrow(u, sx.vent.leeward, false); });
+      if (sx.vent.stack) {
+        const r = Math.min(W, D) / 9;
+        g += '<g class="pl-stack"><title>Stack vent: courtyard, double-height hall or skylight with high openable vents</title><circle cx="' + f(W / 2) + '" cy="' + f(D / 2) + '" r="' + f(r) + '"/>' +
+          '<text x="' + f(W / 2) + '" y="' + f(D / 2) + '" font-size="' + f(fs * 0.62) + '">↑ stack vent</text></g>';
+      }
+    }
+    // labels outside each side
+    sx.sides.forEach(function (x) {
+      const parts = [x.dir + " · " + HEAT[x.heat]];
+      if (st.show.mat || o.static) parts.push(x.wall.short);
+      const l2 = st.show.shade || o.static ? x.shade.short + (x.shade.kind === "none" ? "" : " mm") : "";
+      const t1 = parts.join(" · "), gap = v.m * 0.42;
+      let tr;
+      if (x.side === "top") tr = "translate(" + f(W / 2) + " " + f(-gap) + ")";
+      else if (x.side === "bottom") tr = "translate(" + f(W / 2) + " " + f(D + gap * 0.62) + ")";
+      else if (x.side === "left") tr = "translate(" + f(-gap) + " " + f(D / 2) + ") rotate(-90)";
+      else tr = "translate(" + f(W + gap) + " " + f(D / 2) + ") rotate(90)";
+      g += '<g class="pl-slabel" transform="' + tr + '"><text y="' + f(-fs * 0.45) + '" font-size="' + f(fs * 0.78) + '" fill="' + HEAT_COLOR[x.heat] + '">' + App.esc(t1) + "</text>" +
+        (l2 ? '<text class="sub" y="' + f(fs * 0.55) + '" font-size="' + f(fs * 0.66) + '">' + App.esc(l2.replace(/^chajja /, "chajja ")) + "</text>" : "") + "</g>";
+    });
+    g += '<text class="pl-roofnote" x="' + f(-v.m * 0.9) + '" y="' + f(-v.m * 0.78) + '" font-size="' + f(fs * 0.7) + '">Roof: ' + App.esc(sx.roof.short) + "</text>";
+    return g + "</g>";
+  }
+
   function renderCanvas() {
     const svg = App.$("#pl-svg", root), focusUid = document.activeElement && document.activeElement.closest && document.activeElement.closest("#pl-svg [data-uid]");
     const keep = focusUid ? focusUid.dataset.uid : null;
     const m = svgMarkup();
     svg.setAttribute("viewBox", m.vb);
+    svg.classList.toggle("tracing", !!st.tool);
     svg.innerHTML = m.body;
     if (keep) { const el = svg.querySelector('[data-uid="' + keep + '"]'); if (el) el.focus({ preventScroll: true }); }
   }
@@ -469,7 +654,24 @@
   function onDown(e) {
     if (e.button && e.button !== 0) return;
     const svg = App.$("#pl-svg", root), h = e.target.closest("[data-h]"), g = e.target.closest("[data-uid]");
-    const p = svgPoint(e);
+    const p = svgPoint(e), s0 = st.site;
+    if (st.tool) {
+      // tracing: drag a box for a room, tap to place a door or tank
+      e.preventDefault();
+      const t = App.VASTU_ROOM[st.tool], px = clamp(snapV(p.x), 0, s0.W), py = clamp(snapV(p.y), 0, s0.D);
+      if (t.kind === "room") {
+        drag = { mode: "draw", p0: { x: px, y: py }, rect: null, moved: false };
+        svg.setPointerCapture(e.pointerId);
+      } else {
+        change(function () {
+          const n = P.newItem(st.tool);
+          n.x = px; n.y = py;
+          if (t.kind === "door") Object.assign(n, P.snapDoor(s0, n, fp()));
+          st.items.push(n); st.sel = n.uid;
+        });
+      }
+      return;
+    }
     if (!g) {
       const s = st.site;
       st.sel = null;
@@ -482,18 +684,25 @@
     st.sel = it.uid; st.zoneInfo = null;
     drag = { uid: it.uid, mode: h ? h.dataset.h : "move", p0: p, o: Object.assign({}, it), before: snapshot(), moved: false };
     svg.setPointerCapture(e.pointerId);
-    if (st.step !== 2) st.step = 2;
+    if (st.step < 2) st.step = 2;
     renderAll();
   }
 
   function onMove(e) {
     if (!drag) return;
+    if (drag.mode === "draw") {
+      const p = svgPoint(e), s = st.site, x = clamp(snapV(p.x), 0, s.W), y = clamp(snapV(p.y), 0, s.D);
+      drag.rect = { x: round2(Math.min(x, drag.p0.x)), y: round2(Math.min(y, drag.p0.y)), w: round2(Math.abs(x - drag.p0.x)), h: round2(Math.abs(y - drag.p0.y)) };
+      drag.moved = true;
+      renderCanvas();
+      return;
+    }
     const p = svgPoint(e), it = find(drag.uid), o = drag.o, s = st.site, d = def(it);
     let dx = p.x - drag.p0.x, dy = p.y - drag.p0.y;
     if (!drag.moved && Math.hypot(dx, dy) < pxToUnits(4)) return;
     drag.moved = true;
     const tol = pxToUnits(9);
-    if (d.kind === "door") { Object.assign(it, P.snapDoor(s, { x: o.x + dx, y: o.y + dy })); }
+    if (d.kind === "door") { Object.assign(it, P.snapDoor(s, { x: o.x + dx, y: o.y + dy }, fp())); }
     else if (d.kind === "fixture") { it.x = clamp(snapV(o.x + dx), 0, s.W); it.y = clamp(snapV(o.y + dy), 0, s.D); }
     else if (drag.mode === "move") {
       let x = snapV(o.x + dx), y = snapV(o.y + dy);
@@ -519,6 +728,17 @@
     if (!drag) return;
     const dd = drag;
     drag = null;
+    if (dd.mode === "draw") {
+      const r = dd.rect;
+      if (r && r.w >= 0.6 && r.h >= 0.6) {
+        change(function () {
+          const n = P.newItem(st.tool);
+          Object.assign(n, r, { area: r.w * r.h });
+          st.items.push(n); st.sel = n.uid;
+        });
+      } else renderCanvas();
+      return;
+    }
     if (dd.moved) {
       st.hist.push(dd.before); if (st.hist.length > 80) st.hist.shift();
       st.fut = []; st.touched = true; save();
@@ -531,12 +751,13 @@
 
   /* ---------- keyboard ---------- */
   function onKey(e) {
-    if (!root || !root.isConnected || App.currentView() !== "vastu" || st.step === 3) return;
+    if (!root || !root.isConnected || App.currentView() !== "vastu" || st.step === REPORT) return;
     const tag = (e.target.tagName || "").toLowerCase();
     if (tag === "input" || tag === "select" || tag === "textarea") return;
     const mod = e.ctrlKey || e.metaKey;
     if (mod && (e.key === "z" || e.key === "Z")) { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
     if (mod && (e.key === "y" || e.key === "Y")) { e.preventDefault(); redo(); return; }
+    if (e.key === "Escape" && st.tool) { st.tool = null; renderAll(); return; }
     const it = find(st.sel);
     if (!it) return;
     const step = e.shiftKey ? 0.6 : gridStep(), mv = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
@@ -544,27 +765,27 @@
       e.preventDefault();
       change(function () {
         const s = st.site, d = def(it);
-        if (d.kind === "door") Object.assign(it, P.snapDoor(s, { x: it.x + mv[0] * step, y: it.y + mv[1] * step }));
+        if (d.kind === "door") Object.assign(it, P.snapDoor(s, { x: it.x + mv[0] * step, y: it.y + mv[1] * step }, fp()));
         else if (d.kind === "room") { it.x = round2(clamp(it.x + mv[0] * step, 0, s.W - it.w)); it.y = round2(clamp(it.y + mv[1] * step, 0, s.D - it.h)); }
         else { it.x = round2(clamp(it.x + mv[0] * step, 0, s.W)); it.y = round2(clamp(it.y + mv[1] * step, 0, s.D)); }
       });
     } else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); act("remove"); }
     else if (e.key === "r" || e.key === "R") { act("rotate"); }
     else if (e.key === "d" || e.key === "D") { act("dup"); }
-    else if (e.key === "Escape") { st.sel = null; renderAll(); }
+    else if (e.key === "Escape") { st.sel = null; st.tool = null; renderAll(); }
   }
 
   /* ---------- actions ---------- */
   function placeNew(it) {
     const spot = P.bestSpots(ctx(), it, 1)[0];
     Object.assign(it, spot.pos);
-    if (def(it).kind === "door") Object.assign(it, P.snapDoor(st.site, it));
+    if (def(it).kind === "door") Object.assign(it, P.snapDoor(st.site, it, fp()));
   }
 
   function act(a, el) {
     const s = st.site, it = find(st.sel);
     switch (a) {
-      case "next": st.step = Math.min(3, st.step + 1); if (st.step === 2 && !st.touched) arrange(); window.scrollTo({ top: root.offsetTop - 70, behavior: "smooth" }); renderAll(); break;
+      case "next": st.step = Math.min(REPORT, st.step + 1); if (st.step === 2 && !st.touched) arrange(); window.scrollTo({ top: root.offsetTop - 70, behavior: "smooth" }); renderAll(); break;
       case "undo": undo(); break;
       case "redo": redo(); break;
       case "auto": change(function () { st.items = P.autoArrange(ctx(), st.items); }, { auto: true }); st.touched = false; save(); App.toast("Rooms placed in their best zones. Drag any of them to adjust.", "ok"); if (App.track) App.track("vastu_auto_arrange"); break;
@@ -585,13 +806,23 @@
       case "dup": if (it) change(function () { const n = P.newItem(it.t); if (it.w) { n.w = it.w; n.h = it.h; } placeNew(n); st.items.push(n); st.sel = n.uid; }); break;
       case "remove": if (it) change(function () { st.items = st.items.filter(function (x) { return x !== it; }); st.sel = null; }); break;
       case "deselect": st.sel = null; renderAll(); break;
-      case "spot": if (it) change(function () { const sp = P.bestSpots(ctx(), it, 3)[+el.dataset.k]; Object.assign(it, sp.pos); if (def(it).kind === "door") Object.assign(it, P.snapDoor(s, it)); }); break;
+      case "spot": if (it) change(function () { const sp = P.bestSpots(ctx(), it, 3)[+el.dataset.k]; Object.assign(it, sp.pos); if (def(it).kind === "door") Object.assign(it, P.snapDoor(s, it, fp())); }); break;
       case "pick": if (el.dataset.uid) { st.sel = el.dataset.uid; renderAll(); const g = App.$('#pl-svg [data-uid="' + el.dataset.uid + '"]', root); if (g) g.focus({ preventScroll: true }); } break;
       case "loc-open": st.locOpen = true; renderPanel(); { const c = App.$("#pl-city", root); if (c) c.focus(); } break;
       case "loc-close": st.locOpen = false; renderPanel(); break;
       case "loc-go": locate(App.$("#pl-city", root).value); break;
       case "loc-near": near(); break;
-      case "underlay-clear": st.underlay = null; renderAll(); break;
+      case "underlay-clear": st.underlay = null; storeImage(); renderAll(); break;
+      case "trace-start":
+        if (st.items.length && window.confirm("Start from an empty plot? OK removes the suggested rooms; Cancel keeps them so you can adjust them instead.")) {
+          change(function () { st.items = []; st.sel = null; });
+        }
+        st.trace = true; st.tool = "living"; st.touched = true; st.step = 2; st.show.zones = false;
+        if (App.track) App.track("vastu_trace_start");
+        renderAll(); break;
+      case "tool": st.tool = st.tool === el.dataset.t ? null : el.dataset.t; renderPanel(); renderCanvas(); break;
+      case "trace-done": st.trace = false; st.tool = null; st.show.zones = true; renderAll(); App.toast("Plan traced — " + st.items.length + " items. Check the scores, then see the climate strategies.", "ok"); break;
+      case "trace-climate": st.trace = false; st.tool = null; st.step = CLIMATE; renderAll(); break;
       case "step": st.step = +el.dataset.step; renderAll(); break;
       case "print": if (App.track) App.track("vastu_print"); window.print(); break;
       case "share": share(); break;
@@ -611,7 +842,7 @@
       if (!st.touched) arrange();
       else st.items.forEach(function (it) {
         if (it.w) { it.w = Math.min(it.w, s.W); it.h = Math.min(it.h, s.D); it.x = clamp(it.x, 0, s.W - it.w); it.y = clamp(it.y, 0, s.D - it.h); }
-        else if (def(it).kind === "door") Object.assign(it, P.snapDoor(s, it));
+        else if (def(it).kind === "door") Object.assign(it, P.snapDoor(s, it, fp()));
         else { it.x = clamp(it.x, 0, s.W); it.y = clamp(it.y, 0, s.D); }
       });
     }, { auto: !st.touched });
@@ -623,7 +854,7 @@
     const s = st.site, it = find(st.sel);
     if (a === "fine" && e.type === "input") { s.fine = +el.value; renderCanvas(); const o = el.parentNode.querySelector("output"); if (o) o.textContent = ((s.facing + s.fine) % 360 + 360) % 360 + "° (" + DIR_NAMES[DIRS[P.dirIndex(s.facing)]] + (s.fine ? (s.fine > 0 ? " +" : " ") + s.fine + "°" : "") + ")"; return; }
     if (a === "weight" && e.type === "input") { st.weight = +el.value / 100; const o = el.parentNode.querySelector("output"); if (o) o.textContent = st.weight === 0.5 ? "equal" : st.weight > 0.5 ? Math.round(st.weight * 100) + " % Vastu" : Math.round((1 - st.weight) * 100) + " % science"; renderCanvas(); renderBar(); return; }
-    if (a === "underlay-op" && e.type === "input") { st.underlayOpacity = +el.value; renderCanvas(); return; }
+    if (a === "underlay-op") { st.underlayOpacity = +el.value; renderCanvas(); if (e.type === "change") storeImage(); return; }
     if (e.type !== "change") return;
     const v = fromU(parseFloat(el.value));
     const ok = isFinite(v) && v >= 0;
@@ -639,6 +870,7 @@
         case "iw": if (it && ok && v >= 0.5) change(function () { it.w = round2(Math.min(v, s.W)); it.x = clamp(it.x, 0, s.W - it.w); it.area = it.w * it.h; }); else renderAll(); break;
         case "ih": if (it && ok && v >= 0.5) change(function () { it.h = round2(Math.min(v, s.D)); it.y = clamp(it.y, 0, s.D - it.h); it.area = it.w * it.h; }); else renderAll(); break;
         case "underlay": readImage(el.files[0]); break;
+        case "underlay-fit": st.underlayFit = el.value === "building" ? "building" : "plot"; storeImage(); renderCanvas(); break;
         case "import-file": importFile(el.files[0]); break;
       }
     }, 0);
@@ -647,9 +879,31 @@
   function readImage(file) {
     if (!file || !/^image\//.test(file.type)) { if (file) App.toast("Please choose an image (JPG or PNG) of your plan.", "warn"); return; }
     const r = new FileReader();
-    r.onload = function () { st.underlay = r.result; renderAll(); App.toast("Plan image placed under the drawing. Adjust its opacity in step 1.", "ok"); };
+    r.onload = function () {
+      // scale big photos down so the image stays light and can be kept on this device
+      const img = new Image();
+      img.onload = function () {
+        const k = Math.min(1, 1800 / Math.max(img.width, img.height));
+        const cv = document.createElement("canvas");
+        cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+        const cx2 = cv.getContext("2d");
+        cx2.fillStyle = "#fff"; cx2.fillRect(0, 0, cv.width, cv.height);
+        cx2.drawImage(img, 0, 0, cv.width, cv.height);
+        st.underlay = cv.toDataURL("image/jpeg", 0.85);
+        storeImage(); renderAll();
+        App.toast("Plan image placed under the drawing. Now press “Trace rooms on my plan”.", "ok");
+      };
+      img.onerror = function () { App.toast("That image could not be read.", "err"); };
+      img.src = r.result;
+    };
     r.readAsDataURL(file);
     if (App.track) App.track("vastu_plan_overlay");
+  }
+  function storeImage() {
+    try {
+      if (st.underlay) localStorage.setItem(STORE + "-img", JSON.stringify({ src: st.underlay, fit: st.underlayFit, op: st.underlayOpacity }));
+      else localStorage.removeItem(STORE + "-img");
+    } catch (e) { /* too big or storage blocked: the image just is not kept */ }
   }
 
   function importFile(file) {
@@ -722,7 +976,7 @@
     const nm = {};
     numbered.forEach(function (x) { nm[x.uid] = x.n || x.auto || App.VASTU_ROOM[x.t].label; });
     const exact = ((s.facing + (s.fine || 0)) % 360 + 360) % 360;
-    let h = '<div class="pl-report-actions no-print"><button type="button" class="btn" data-act="step" data-step="2">← Back to drawing</button>' +
+    let h = '<div class="pl-report-actions no-print"><button type="button" class="btn" data-act="step" data-step="2">← Back to drawing</button><button type="button" class="btn" data-act="step" data-step="3">Climate strategies</button>' +
       '<button type="button" class="btn primary" data-act="print">Print / save PDF</button><button type="button" class="btn" data-act="share">Copy share link</button>' +
       '<button type="button" class="btn" data-act="json">Download plan file</button><button type="button" class="btn" data-act="import">Open plan file</button>' +
       '<button type="button" class="btn" data-act="svg">Download drawing (SVG)</button><input type="file" id="pl-import" data-act="import-file" accept=".json,application/json" hidden></div>';
@@ -748,6 +1002,17 @@
       return '<li><div class="pl-issue ' + i.sev + '"><b>' + App.esc(i.text) + "</b>" + (i.fix ? "<span>" + App.esc(i.fix) + "</span>" : "") + "</div></li>";
     }).join("") + "</ul>" : '<p class="pl-ok">✓ No overlaps, setback, size or Vastu problems found.</p>') + "</section>";
     if (metrics) {
+      const sx = strategies(), m2 = svgMarkup({ static: true, strat: true });
+      h += '<section class="card pl-rep-strat"><h2>Climate strategies — ' + App.esc(ds.meta.city) + " (" + sx.zoneLabel + ")</h2>" +
+        '<div class="pl-rep-grid"><div><h3>Key moves</h3><ol class="pl-key">' + sx.key.map(function (k) { return "<li>" + App.esc(k) + "</li>"; }).join("") + "</ol>" +
+        "<h3>Roof</h3><p class=\"small\">" + App.esc(sx.roof.text) + "</p><h3>Ventilation</h3><ul class=\"tips small\">" + sx.vent.tips.map(function (t) { return "<li>" + App.esc(t) + "</li>"; }).join("") + "</ul></div>" +
+        '<div class="pl-rep-plan"><svg class="pl-svg static" viewBox="' + m2.vb + '" role="img" aria-label="Climate strategy plan">' + m2.body + "</svg>" +
+        '<p class="pl-legend small"><span><i class="lg-mat high"></i>Hot wall — insulate</span><span><i class="lg-mat mid"></i>Moderate</span><span><i class="lg-mat low"></i>Cool</span><span><i class="lg-chajja"></i>Chajja to scale</span><span><i class="lg-wind">➜</i>Breeze in / out</span><span><i class="lg-tree"></i>Trees</span></p></div></div>' +
+        '<div class="table-wrap"><table class="pl-sched"><thead><tr><th>Side</th><th>Shading</th><th>Walls</th><th>Windows</th><th>Planting</th></tr></thead><tbody>' +
+        sx.sides.map(function (x) {
+          return "<tr><td>" + sideChip(x) + (x.windward ? '<div class="small muted">breeze inlet side</div>' : x.leeward ? '<div class="small muted">breeze outlet side</div>' : "") + '</td><td class="small">' + App.esc(x.shade.text) +
+            '</td><td class="small">' + App.esc(x.wall.text) + '</td><td class="small">' + App.esc(x.window) + '</td><td class="small">' + App.esc(x.plant.text) + "</td></tr>";
+        }).join("") + '</tbody></table></div><ul class="tips small">' + sx.site.map(function (t) { return "<li>" + App.esc(t) + "</li>"; }).join("") + "</ul></section>";
       const sol = App.scienceScores(metrics, "solar"), bestK = sol.score.indexOf(Math.max.apply(null, sol.score));
       h += '<section class="card"><h2>Rooftop solar</h2><p>Face the panels <b>' + DIR_NAMES[DIRS[bestK]] + "</b> (" + App.esc(sol.why[bestK]) + "), tilted at about the site latitude (" + ds.meta.lat.toFixed(0) + "°). Vastu also favours " +
         App.VASTU_SOLAR.pref.map(function (z) { return DIR_NAMES[z]; }).join(", ") + " for heavy rooftop structures. Panel frames can face south whatever the room below.</p></section>";
@@ -783,7 +1048,7 @@
     svg.addEventListener("pointercancel", onUp);
     svg.addEventListener("focusin", function (e) {
       const g = e.target.closest && e.target.closest("[data-uid]");
-      if (g && g.dataset.uid !== st.sel && !drag) { st.sel = g.dataset.uid; st.zoneInfo = null; if (st.step !== 2) st.step = 2; renderPanel(); renderSteps(); renderCanvas(); }
+      if (g && g.dataset.uid !== st.sel && !drag) { st.sel = g.dataset.uid; st.zoneInfo = null; if (st.step < 2) st.step = 2; renderPanel(); renderSteps(); renderCanvas(); }
     });
     svg.addEventListener("keydown", function (e) {
       const g = e.target.closest && e.target.closest("[data-uid]");

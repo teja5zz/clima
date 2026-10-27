@@ -9,7 +9,7 @@ const vm = require("vm");
 global.window = global;
 global.btoa = (s) => Buffer.from(s, "binary").toString("base64");
 global.atob = (s) => Buffer.from(s, "base64").toString("binary");
-for (const f of ["core/utci-poly.js", "core/science.js", "core/variables.js", "core/epw.js", "core/siting.js", "data/vastu.js", "core/planner.js"]) {
+for (const f of ["core/utci-poly.js", "core/science.js", "core/variables.js", "core/epw.js", "core/siting.js", "data/vastu.js", "core/planner.js", "core/strategies.js"]) {
   vm.runInThisContext(fs.readFileSync(path.join(__dirname, "..", "js", f), "utf8"), { filename: f });
 }
 const S = global.App.S;
@@ -177,4 +177,29 @@ test("plans survive a share link round trip", () => {
   assert.strictEqual(back.items[1].n, "Hall — ಹಾಲ್");
   assert.throws(() => P.deserialize("not-a-plan"));
   assert.throws(() => P.unpack({ v: 2, W: "x", D: 10, f: 0, sb: [0, 0, 0, 0], i: [] }));
+});
+
+test("climate strategies for a plan", () => {
+  const A = global.App, P = A.Plan;
+  const epw = fs.readFileSync(path.join(__dirname, "..", "..", "tests", "python", "ITA_ER_Bologna-Marconi.AP.161400_TMYx.2004-2018.epw"), "utf8");
+  const ds = A.parseEpw(epw, "sample.epw"), m = A.siteMetrics(ds);
+  const site = P.defaultSite(), items = P.autoArrange({ site, metrics: m, weight: 0.5 }, P.fromPreset("3bhk"));
+  const s = A.planStrategies(ds, m, site, items);
+  assert.strictEqual(s.sides.length, 4);
+  // road side of an east-facing plot is the bottom of the drawing
+  assert.strictEqual(s.sides.find((x) => x.side === "bottom").dir, "E");
+  for (const x of s.sides) {
+    assert.ok(["high", "mid", "low"].includes(x.heat));
+    assert.ok(x.shade.depth >= 300 && x.shade.depth <= 1200, x.side + " " + x.shade.depth);
+    assert.ok(x.wall.text && x.window && x.plant.text);
+  }
+  // in the northern hemisphere a north wall gets less hot-hour sun than a south wall
+  const shade = A.planStrategies.shadeFor;
+  assert.ok(shade(ds, 0).kwh < shade(ds, 180).kwh);
+  assert.ok(shade(ds, 270).hours > 0);
+  assert.ok(s.sides.filter((x) => x.windward).length <= 1 && s.sides.filter((x) => x.leeward).length <= 1);
+  assert.ok(s.vent.comfortShare > 0 && s.vent.comfortShare < 1);
+  assert.ok(s.key.length >= 3 && s.roof.text);
+  const ids = new Set(items.map((it) => it.uid));
+  s.vent.inlets.concat(s.vent.outlets, s.vent.single).forEach((u) => assert.ok(ids.has(u)));
 });
