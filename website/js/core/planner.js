@@ -69,10 +69,21 @@ window.App = window.App || {};
   };
   P.zoneOf = function (site, it) { const c = P.center(it); return P.zoneAt(site, c.x, c.y); };
 
-  // Outside walls of a room: sides lying on the buildable boundary, with their true direction.
-  P.facades = function (site, it, tol) {
+  // Outline of the building: the bounding box of its rooms (so a traced plan that does not
+  // reach the setback line still has outside walls), or the buildable area when there are none.
+  P.footprint = function (site, items) {
+    const rooms = (items || []).filter(function (it) { return it.w && App.VASTU_ROOM[it.t] && App.VASTU_ROOM[it.t].kind === "room"; });
+    if (!rooms.length) return P.buildable(site);
+    return rooms.reduce(function (a, it) {
+      return { x0: Math.min(a.x0, it.x), y0: Math.min(a.y0, it.y), x1: Math.max(a.x1, it.x + it.w), y1: Math.max(a.y1, it.y + it.h) };
+    }, { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity });
+  };
+
+  // Outside walls of a room: sides lying on the building outline (default: the buildable boundary),
+  // with their true direction.
+  P.facades = function (site, it, tol, bounds) {
     tol = tol == null ? 0.3 : tol;
-    const b = P.buildable(site), out = [];
+    const b = bounds || P.buildable(site), out = [];
     if (!it.w) return out;
     const sides = [["top", Math.abs(it.y - b.y0) <= tol, it.w], ["bottom", Math.abs(it.y + it.h - b.y1) <= tol, it.w],
       ["left", Math.abs(it.x - b.x0) <= tol, it.h], ["right", Math.abs(it.x + it.w - b.x1) <= tol, it.h]];
@@ -80,15 +91,15 @@ window.App = window.App || {};
     return out;
   };
 
-  // Side of the buildable boundary a door point sits on.
-  P.doorSide = function (site, it) {
-    const b = P.buildable(site);
+  // Side of the building outline (default: the buildable boundary) a door point sits on.
+  P.doorSide = function (site, it, bounds) {
+    const b = bounds || P.buildable(site);
     const d = [["top", Math.abs(it.y - b.y0)], ["bottom", Math.abs(it.y - b.y1)], ["left", Math.abs(it.x - b.x0)], ["right", Math.abs(it.x - b.x1)]];
     d.sort(function (a, c) { return a[1] - c[1]; });
     return d[0][0];
   };
-  P.snapDoor = function (site, it) {
-    const b = P.buildable(site), side = P.doorSide(site, it);
+  P.snapDoor = function (site, it, bounds) {
+    const b = bounds || P.buildable(site), side = P.doorSide(site, it, b);
     const x = Math.min(b.x1 - 0.6, Math.max(b.x0 + 0.6, it.x)), y = Math.min(b.y1 - 0.6, Math.max(b.y0 + 0.6, it.y));
     if (side === "top") return { x: x, y: b.y0 };
     if (side === "bottom") return { x: x, y: b.y1 };
@@ -111,7 +122,7 @@ window.App = window.App || {};
     const res = { zone: zone, vastu: vastu, verdict: App.vastuVerdict(def, zone), climate: null, why: "", facades: [], interior: false };
     const sci = ctx.metrics && def.sci ? sciOf(ctx, def.sci) : null;
     if (def.kind === "room") {
-      res.facades = P.facades(ctx.site, it);
+      res.facades = P.facades(ctx.site, it, null, ctx.bounds);
       res.interior = res.facades.length === 0;
       if (sci) {
         if (res.interior) {
@@ -125,7 +136,7 @@ window.App = window.App || {};
         }
       }
     } else if (def.kind === "door") {
-      const side = P.doorSide(ctx.site, it), k = P.sideDir(ctx.site, side);
+      const side = P.doorSide(ctx.site, it, ctx.bounds), k = P.sideDir(ctx.site, side);
       res.facades = [{ side: side, k: k, len: 1 }];
       if (sci) { res.climate = sci.score[k]; res.why = "door faces " + DIRS[k] + ": " + sci.why[k]; }
     } else if (sci && zone !== "C") {
@@ -148,6 +159,7 @@ window.App = window.App || {};
   // Full evaluation of a plan: per-item scores, issues, summary.
   P.evaluate = function (ctx, items) {
     const site = ctx.site, b = P.buildable(site), roads = P.roadSides(site);
+    ctx = Object.assign({}, ctx, { bounds: P.footprint(site, items) });
     const scored = items.map(function (it) { return { it: it, s: P.scoreItem(ctx, it) }; });
     const issues = [];
     const add = function (sev, uid, text, fix) { issues.push({ sev: sev, uid: uid, text: text, fix: fix || "" }); };
@@ -164,7 +176,7 @@ window.App = window.App || {};
         }
         if (s.interior && def.habitable) add("warn", it.uid, name + " has no outside wall, so it cannot have windows.", "Move it to the edge of the building or add a courtyard beside it (NBC asks for openings of about 1/10 of the floor area).");
       }
-      if (def.kind === "door" && roads.indexOf(P.doorSide(site, it)) < 0) {
+      if (def.kind === "door" && roads.indexOf(P.doorSide(site, it, ctx.bounds)) < 0) {
         add("error", it.uid, "The main entrance is not on a road side.", "Drag it to the road side of the plot.");
       }
       if (s.verdict === "Avoid") {
