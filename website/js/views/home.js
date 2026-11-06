@@ -42,7 +42,7 @@
     ["Is it free?", "Yes. Every tool on the site is free and needs no account or sign up."],
     ["Is my plan or drawing uploaded anywhere?", "No. Plans, drawings and weather files are processed in your browser and saved only on your device. Station weather files are downloaded from this site."],
     ["Which places does it cover?", "Over 400 Indian weather stations, from ISHRAE, Climate.OneBuilding.org and EnergyPlus weather files. You can also load any EPW weather file for a site elsewhere."],
-    ["How does it give an opinion on my own drawing?", "Upload a photo or scan of the plan and trace each room with a box. The Review tab then lists which rooms to swap or move for Vastu, what already works, and what to do inside rooms that stay. It does not read drawings automatically yet."],
+    ["How does it give an opinion on my own drawing?", "Upload a photo, scan or screenshot of the plan. The planner finds the closed rooms, reads the room names and sizes written on it, and places the plan on your plot at its true size. You check the room types, then the Review tab lists which rooms to swap or move for Vastu, what already works, and what to do inside rooms that stay. Reading happens in your browser; the drawing is never uploaded."],
     ["Do Vastu and climate advice ever disagree?", "Sometimes. A west bedroom can suit Vastu and still be the hottest room in the house. The planner shows both scores, lets you set the balance between them, and flags changes that cost comfort."],
     ["Which Vastu rules does it follow?", "Eight 45° zones around the plot centre plus the Brahmasthan, from the Vastu Wheel for Residential Plans by Tejas Constructions. Every room type has preferred, acceptable and avoid zones."],
     ["Can it replace an architect or engineer?", "No. It is for early design and for a better conversation with your designer. Have the final drawings, structure and services checked by a qualified professional. trikrt offers that service."],
@@ -59,7 +59,7 @@
       return '<section class="lp-hero" aria-labelledby="hero-h"><div class="lp-in"><div>' +
         '<img class="hero-word" src="' + App.esc(b.wordmarkLight || "") + '" alt="' + App.esc(b.company) + '" width="196" height="104">' +
         '<h1 id="hero-h" class="hero-h heading-1">Plan a Vastu home<br>that stays cool<br>in your city</h1>' +
-        '<p class="hero-sub title-2">Draw your plot, add rooms or trace your own drawing, and see where every room belongs by Vastu and by the sun, heat and breeze at your site.</p>' +
+        '<p class="hero-sub title-2">Draw your plot, add rooms or upload your own drawing, and see where every room belongs by Vastu and by the sun, heat and breeze at your site.</p>' +
         '<div class="hero-cta">' + cta + '<p class="hero-risk caption-2">Free, no sign up. Your plan stays on your device.</p></div>' +
         '<ul class="hero-proof caption-1"><li>' + App.icon("map-pin") + "Weather for over 400 Indian stations</li><li>" + App.icon("seal-check") + "Built on UC Berkeley's CBE Clima Tool</li></ul></div>" +
         '<figure class="hero-shot"><img src="img/planner-shot.jpg" width="1280" height="800" alt="The planner showing a 3 BHK plan on a 40 by 60 foot plot, with Vastu zones and the plan review panel listing a swap of the kitchen and living room."></figure>' +
@@ -74,7 +74,7 @@
         '<section class="lp-sec alt" aria-labelledby="ben-h"><div class="lp-in" data-reveal><div class="lp-head"><p class="eyebrow">What you get</p><h2 id="ben-h">Everything a plot needs before the drawings</h2></div>' +
         '<div class="benefits">' +
         benefit("compass", "Every room in its right zone", "Rooms are scored by Vastu zone and by the outside walls they touch. Auto arrange places a 1 to 4 BHK on your plot in one click.") +
-        benefit("seal-check", "An opinion on your own drawing", "Upload a photo of a plan, trace the rooms, and get a review: which rooms to swap, what already works, and what to do if a room stays.") +
+        benefit("seal-check", "An opinion on your own drawing", "Upload a photo or scan of your plan. The planner finds the rooms, reads their names and sizes, and reviews it: which rooms to swap, what already works, and what to do if a room stays. <a href=\"#/vastu?import=1\">Analyse my plan</a>") +
         benefit("sun-horizon", "Windows and shading for your site", "Chajja depth for each wall from real sun angles, window sizes, and inlet and outlet positions for cross ventilation.") +
         benefit("thermometer-hot", "Walls and a roof that keep heat out", "Wall build up for each side and roof options ranked by effect and cost, checked against Eco Niwas Samhita 2018.") +
         "</div></div></section>" +
@@ -84,7 +84,7 @@
 
         '<section class="lp-sec" aria-labelledby="how-h"><div class="lp-in" data-reveal><div class="lp-head"><p class="eyebrow">How it works</p><h2 id="how-h">From plot to plan in three steps</h2></div>' +
         '<ol class="steps3"><li><h3>Set your plot and city</h3><p>Plot size in feet or metres, the road facing, setbacks, and the nearest of over 400 weather stations.</p></li>' +
-        "<li><h3>Add rooms or trace your drawing</h3><p>Pick a house type and let it arrange, or drag a box over each room of the plan you already have.</p></li>" +
+        "<li><h3>Add rooms or upload your drawing</h3><p>Pick a house type and let it arrange, or upload the plan you already have and let the planner find and name its rooms.</p></li>" +
         "<li><h3>Read the review and print</h3><p>Swaps and moves ranked by gain, cooling strategies drawn on the plan, and a report for your builder.</p></li></ol>" +
         '<div class="btn-row">' + '<a class="btn primary" href="#/vastu">Start your free plan</a></div></div></section>' +
 

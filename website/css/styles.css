@@ -942,3 +942,38 @@ body.studio .main { padding: 0; max-width: none; }
 .pl-goodlist { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-50); font-size: .875rem; line-height: 1.25rem; }
 .pl-goodlist li { display: flex; gap: var(--s-75); align-items: center; }
 .pl-rep-review h3 { margin-top: var(--s-200); }
+
+/* ---------- planner: analyse my own plan ---------- */
+.st-start-card { padding: var(--s-400); }
+.st-start-card h2 { font-weight: 600; }
+.st-start-card.st-imp { width: min(880px, 100%); }
+.st-alt.strong { background: var(--navy); color: #fff; display: inline-flex; align-items: center; gap: var(--s-75); }
+.st-alt.strong:hover { background: var(--brand-ink); }
+.ic.flip { transform: scaleX(-1); }
+.imp-drop { display: flex; flex-direction: column; align-items: center; gap: var(--s-75); text-align: center; padding: var(--s-500) var(--s-300); margin: var(--s-300) 0 var(--s-200);
+  border: 2px dashed var(--line-2); border-radius: var(--r-2xl); background: var(--surface-2); cursor: pointer; transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease); }
+.imp-drop:hover, .imp-drop:focus-within { border-color: var(--brand); background: #eef5ea; }
+.imp-drop .ic { width: 32px; height: 32px; color: var(--brand); }
+.imp-drop span { color: var(--ink-2); font-size: .875rem; line-height: 1.25rem; }
+.imp-tips { margin: 0; padding-left: var(--s-300); color: var(--ink-2); display: grid; gap: var(--s-50); }
+.imp-orient { margin: var(--s-200) 0; }
+.imp-preview { position: relative; border: 1px solid var(--line); border-radius: var(--r-xl); background: #fff; overflow: hidden; padding-bottom: var(--s-300); }
+.imp-preview img { display: block; width: 100%; max-height: 360px; object-fit: contain; }
+.imp-road { position: absolute; left: 0; right: 0; bottom: 0; text-align: center; background: #e4ddd3; color: #5c5145; font-size: .75rem; line-height: 1rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; padding: var(--s-50); }
+.imp-check { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--s-300); margin: var(--s-200) 0; align-items: start; }
+.imp-check .imp-preview { padding-bottom: 0; }
+.imp-check .imp-preview img { max-height: none; object-fit: fill; }
+.imp-check svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.imp-check svg rect { fill: rgba(47, 125, 79, .16); stroke: var(--brand); stroke-width: 3; vector-effect: non-scaling-stroke; }
+.imp-check svg rect.bld { fill: none; stroke: var(--sun); stroke-dasharray: 6 4; }
+.imp-check svg text { fill: var(--navy); font-weight: 700; text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: #fff; stroke-width: 4px; }
+.imp-list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-75); max-height: 420px; overflow-y: auto; }
+.imp-list li { display: flex; gap: var(--s-100); align-items: flex-start; }
+.imp-list li > div { display: grid; gap: var(--s-25); flex: 1; min-width: 0; }
+.imp-list select { width: 100%; }
+.imp-n { flex: none; width: 24px; height: 24px; border-radius: var(--r-full); display: grid; place-items: center; background: var(--navy); color: #fff; font-size: .75rem; line-height: 1rem; font-weight: 600; margin-top: var(--s-75); }
+.imp-prog { width: 100%; height: 8px; margin: var(--s-300) 0; accent-color: var(--brand); }
+@media (max-width: 760px) { .imp-check { grid-template-columns: minmax(0, 1fr); } .st-start-card { padding: var(--s-200); } }
+.imp-scale { display: flex; gap: var(--s-75); align-items: flex-start; color: var(--ink-2); margin: var(--s-75) 0 0; }
+.imp-scale .ic { color: var(--brand); margin-top: var(--s-25); }
+.benefit p a { font-weight: 600; white-space: nowrap; }

@@ -142,3 +142,7 @@ If you use this website, please cite the CBE Clima Tool:
 
 > Betti, G., Tartarini, F., Nguyen, C., Schiavon, S. CBE Clima Tool: A free and open-source web application for climate
 > analysis tailored to sustainable building design. *Build. Simul.* (2023). https://doi.org/10.1007/s12273-023-1090-5
+
+## Analyse an uploaded plan
+
+`js/core/planread.js` reads a plan drawing in the browser: the light areas closed by walls are the rooms (thin lines such as door swings are kept by a local threshold, small gaps are sealed by thickening the dark pixels, door-swing pockets are handed back to the room on the near side of the wall, and an L-shaped hall keeps the largest rectangle inside it). Room names and sizes are read with Tesseract.js 5.1.1 (Apache-2.0), served from `vendor/tesseract-5.1.1/` with the English LSTM model, so drawings never leave the device. Sizes such as `14'0" x 13'0"` give the scale, and the building is placed on the plot at its true size behind the front setback; without readable sizes it is fitted inside the setbacks. The planner's wizard (Rooms tab, start screen, or `#/vastu?import=1`) lets the visitor check the room types, then opens the Review tab.

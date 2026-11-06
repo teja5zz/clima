@@ -53,7 +53,7 @@
     st.loaded = true;
     try {
       const img = JSON.parse(localStorage.getItem(STORE + "-img") || "null");
-      if (img && /^data:image\//.test(img.src)) { st.underlay = img.src; st.underlayFit = img.fit === "building" ? "building" : "plot"; st.underlayOpacity = +img.op || 0.5; }
+      if (img && /^data:image\//.test(img.src)) { st.underlay = img.src; st.underlayFit = img.fit === "building" ? "building" : "plot"; st.underlayOpacity = +img.op || 0.5; st.underlayRect = img.rect || null; }
     } catch (e) { /* ignore */ }
     const m = location.hash.match(/[?&]plan=([A-Za-z0-9_-]+)/);
     if (m) {
@@ -120,6 +120,7 @@
     mount: function (r) {
       root = r;
       if (!st.loaded) load();
+      if (/[?&]import=1/.test(location.hash)) { impOpen(); history.replaceState(null, "", location.pathname + location.search + "#/vastu"); }
       const ds = App.state.ds;
       metrics = ds ? App.siteMetrics(ds) : null;
       if (!st.touched) arrange(); // climate may have changed the best layout
@@ -204,7 +205,8 @@
   /* ---------- start screen ---------- */
   function renderStart() {
     const el = App.$("#pl-start", root);
-    el.hidden = !st.start;
+    el.hidden = !st.start && !st.imp;
+    if (st.imp) { el.innerHTML = importHtml(); return; }
     if (!st.start) { el.innerHTML = ""; return; }
     const q = st.quick;
     const dirBtn = function (d) {
@@ -226,7 +228,7 @@
       '<div class="st-start-go"><button type="button" class="btn primary" data-act="start-quick">Create my plan →</button>' +
       (st.items.length && !st.fresh ? '<button type="button" class="btn ghost" data-act="start-close">Keep my current plan</button>' : "") + "</div>" +
       '<div class="st-start-alt"><span class="muted small">Or</span>' +
-      '<label class="st-alt" for="pl-img-start">✎ Trace my plan drawing<input type="file" id="pl-img-start" class="sr" accept="image/*" data-act="underlay-start"></label>' +
+      '<button type="button" class="st-alt strong" data-act="imp-open">' + App.icon("upload-simple") + "Upload my plan and analyse it</button>" +
       '<button type="button" class="st-alt" data-act="start-blank">▢ Start with a blank plot</button>' +
       '<button type="button" class="st-alt" data-act="import">⇪ Open a plan file</button></div></div>';
   }
@@ -342,7 +344,8 @@
     h += '<details class="pl-sec pl-more"><summary>Start again from a house type</summary><div class="pl-presets">' + App.VASTU_PRESETS.map(function (p) {
       return '<button type="button" class="pl-preset" data-act="preset" data-p="' + p.id + '"><b>' + p.label + "</b><small>" + p.items.length + " items</small></button>";
     }).join("") + "</div></details>";
-    h += '<details class="pl-sec pl-more"' + (st.underlay ? " open" : "") + "><summary>Trace my own plan drawing</summary>" + traceIntro() + "</details>";
+    h += '<section class="pl-sec"><button type="button" class="btn sm primary" data-act="imp-open">' + App.icon("upload-simple") + "Upload my plan and analyse it</button></section>";
+    h += '<details class="pl-sec pl-more"' + (st.underlay ? " open" : "") + "><summary>Trace my own plan drawing by hand</summary>" + traceIntro() + "</details>";
     h += st.zoneInfo ? zoneCard(st.zoneInfo) : "";
     return h + nextBtn(metrics ? "Next: climate strategies" : "Next: climate");
   }
@@ -434,7 +437,7 @@
     let h = '<h2 class="pl-h">Plan review</h2>';
     if (!st.items.some(function (it) { return def(it).kind === "room"; })) {
       return h + '<section class="pl-sec"><p>Add rooms or trace your drawing first. The review then says what works for Vastu, which rooms to swap or move, and what to do in rooms that stay.</p>' +
-        '<div class="btn-row tight"><button type="button" class="btn sm primary" data-act="tab" data-tab="' + ROOMS + '">Add rooms</button><button type="button" class="btn sm" data-act="trace-start">Trace a drawing</button></div></section>';
+        '<div class="btn-row tight"><button type="button" class="btn sm primary" data-act="imp-open">Upload my plan</button><button type="button" class="btn sm" data-act="tab" data-tab="' + ROOMS + '">Add rooms</button></div></section>';
     }
     const rv = P.review(ctx(), st.items), nm = names();
     h += '<p class="small muted">An opinion on the plan as drawn' + (st.underlay ? " over your uploaded drawing" : "") + ": what works for Vastu, what to change, and what to do in rooms that stay." +
@@ -599,7 +602,7 @@
     // plot
     g += '<rect class="pl-plot" x="0" y="0" width="' + f(W) + '" height="' + f(D) + '"/>';
     if (st.underlay && !opts.static) {
-      const ib = st.underlayFit === "building" ? b : { x0: 0, y0: 0, x1: W, y1: D };
+      const ib = st.underlayRect || (st.underlayFit === "building" ? b : { x0: 0, y0: 0, x1: W, y1: D });
       g += '<image href="' + st.underlay + '" x="' + f(ib.x0) + '" y="' + f(ib.y0) + '" width="' + f(ib.x1 - ib.x0) + '" height="' + f(ib.y1 - ib.y0) + '" preserveAspectRatio="none" opacity="' + st.underlayOpacity + '"/>';
     }
     // zones
@@ -1009,7 +1012,7 @@
 
   /* ---------- keyboard ---------- */
   function onKey(e) {
-    if (!root || !root.isConnected || App.currentView() !== "vastu" || st.tab === REPORT || st.start) return;
+    if (!root || !root.isConnected || App.currentView() !== "vastu" || st.tab === REPORT || st.start || st.imp) return;
     const tag = (e.target.tagName || "").toLowerCase();
     if (tag === "input" || tag === "select" || tag === "textarea") return;
     const mod = e.ctrlKey || e.metaKey;
@@ -1092,6 +1095,22 @@
         break;
       case "new": st.pop = null; st.start = true; st.fresh = false; renderAll(); break;
       case "start-close": st.start = false; renderAll(); break;
+      case "imp-open": impOpen(); break;
+      case "imp-close": st.imp = null; renderAll(); break;
+      case "imp-rot": impRotate(+el.dataset.by); break;
+      case "imp-size": st.imp.W = +el.dataset.w; st.imp.D = +el.dataset.d; renderStart(); break;
+      case "imp-facing": st.imp.facing = +el.dataset.az; renderStart(); break;
+      case "imp-find": impFind(el.dataset.read === "1"); break;
+      case "imp-back": st.imp.step = "orient"; renderStart(); break;
+      case "imp-go": impAnalyse(); break;
+      case "imp-trace": {
+        const im = st.imp;
+        st.quick.W = im.W; st.quick.D = im.D; st.quick.facing = im.facing; st.imp = null;
+        startPlan([]);
+        if (im.src) { st.underlay = im.src; st.underlayFit = "plot"; st.underlayRect = null; storeImage(); }
+        st.trace = true; st.tool = "living"; st.show.zones = false; if (mobile()) st.sheet = "peek";
+        renderAll();
+      } break;
       case "q-preset": st.quick.preset = el.dataset.p; renderStart(); break;
       case "q-size": st.quick.W = +el.dataset.w; st.quick.D = +el.dataset.d; renderStart(); break;
       case "q-facing": st.quick.facing = +el.dataset.az; renderStart(); break;
@@ -1125,7 +1144,7 @@
       case "loc-close": st.locOpen = false; renderPanel(); break;
       case "loc-go": locate(App.$("#pl-city", root).value); break;
       case "loc-near": near(); break;
-      case "underlay-clear": st.underlay = null; storeImage(); renderAll(); break;
+      case "underlay-clear": st.underlay = null; st.underlayRect = null; storeImage(); renderAll(); break;
       case "trace-start":
         if (st.items.length && window.confirm("Start from an empty plot? OK removes the current rooms; Cancel keeps them so you can adjust them instead.")) {
           change(function () { st.items = []; st.sel = null; });
@@ -1184,8 +1203,11 @@
         case "ih": if (it && ok && v >= 0.5) change(function () { it.h = round2(Math.min(v, s.D)); it.y = clamp(it.y, 0, s.D - it.h); it.area = it.w * it.h; }); else renderAll(); break;
         case "underlay": readImage(el.files[0]); break;
         case "underlay-start": st.traceAfter = true; readImage(el.files[0]); break;
-        case "underlay-fit": st.underlayFit = el.value === "building" ? "building" : "plot"; storeImage(); renderCanvas(); break;
+        case "underlay-fit": st.underlayFit = el.value === "building" ? "building" : "plot"; st.underlayRect = null; storeImage(); renderCanvas(); break;
         case "import-file": importFile(el.files[0]); break;
+        case "imp-file": impFile(el.files[0]); break;
+        case "imp-w": case "imp-d": { const n = Math.round(parseFloat(el.value)); if (n >= 10 && n <= 300) st.imp[a === "imp-w" ? "W" : "D"] = n; renderStart(); } break;
+        case "imp-type": st.imp.rooms[+el.dataset.i].t = el.value; st.imp.rooms[+el.dataset.i].guess = false; break;
       }
     }, 0);
   }
@@ -1203,7 +1225,7 @@
         const cx2 = cv.getContext("2d");
         cx2.fillStyle = "#fff"; cx2.fillRect(0, 0, cv.width, cv.height);
         cx2.drawImage(img, 0, 0, cv.width, cv.height);
-        st.underlay = cv.toDataURL("image/jpeg", 0.85);
+        st.underlay = cv.toDataURL("image/jpeg", 0.85); st.underlayRect = null;
         storeImage();
         if (st.traceAfter) {
           // from the start screen: an empty plot with tracing switched on
@@ -1223,9 +1245,197 @@
     r.readAsDataURL(file);
     if (App.track) App.track("vastu_plan_overlay");
   }
+  /* ---------- analyse my own plan: upload, find the rooms, read their names ---------- */
+  const TESS = "vendor/tesseract-5.1.1/";
+  const IMP_TYPES = App.VASTU_ROOMS.filter(function (r) { return r.kind === "room"; });
+
+  function impOpen() {
+    const q = st.quick;
+    st.imp = { step: "pick", W: q.W, D: q.D, facing: q.facing, rot: 0 };
+    st.start = false;
+    renderAll();
+  }
+  function impFile(file) {
+    if (!file || !/^image\//.test(file.type)) { if (file) App.toast("Please choose an image of your plan (JPG or PNG). For a PDF, take a screenshot of the plan first.", "warn"); return; }
+    const r = new FileReader();
+    r.onload = function () {
+      const img = new Image();
+      img.onload = function () { st.imp.img = img; st.imp.rot = 0; st.imp.step = "orient"; impRotate(0); };
+      img.onerror = function () { App.toast("That image could not be read. Try a JPG or PNG.", "err"); };
+      img.src = r.result;
+    };
+    r.readAsDataURL(file);
+    if (App.track) App.track("vastu_import_upload");
+  }
+  // draw the uploaded image turned by rot degrees, at most 1800 px on its long side
+  function impRotate(by) {
+    const im = st.imp, img = im.img;
+    im.rot = ((im.rot + by) % 360 + 360) % 360;
+    const k = Math.min(1, 1800 / Math.max(img.width, img.height)), turn = im.rot % 180 !== 0;
+    const w = Math.round(img.width * k), h = Math.round(img.height * k);
+    const cv = document.createElement("canvas");
+    cv.width = turn ? h : w; cv.height = turn ? w : h;
+    const c = cv.getContext("2d");
+    c.fillStyle = "#fff"; c.fillRect(0, 0, cv.width, cv.height);
+    c.translate(cv.width / 2, cv.height / 2); c.rotate(im.rot * Math.PI / 180);
+    c.drawImage(img, -w / 2, -h / 2, w, h);
+    im.canvas = cv; im.src = cv.toDataURL("image/jpeg", 0.85); im.det = null;
+    renderStart();
+  }
+  function grey(cv, maxSide) {
+    const k = Math.min(1, maxSide / Math.max(cv.width, cv.height));
+    const w = Math.round(cv.width * k), h = Math.round(cv.height * k);
+    const c2 = document.createElement("canvas");
+    c2.width = w; c2.height = h;
+    const c = c2.getContext("2d");
+    c.drawImage(cv, 0, 0, w, h);
+    const d = c.getImageData(0, 0, w, h).data, g = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) g[i] = (d[4 * i] * 0.299 + d[4 * i + 1] * 0.587 + d[4 * i + 2] * 0.114) | 0;
+    return { g: g, w: w, h: h, k: k };
+  }
+  function loadScript(src) {
+    return new Promise(function (ok, fail) {
+      if (window.Tesseract) { ok(); return; }
+      const s = document.createElement("script");
+      s.src = src; s.onload = ok; s.onerror = function () { fail(new Error("The text reader could not be loaded.")); };
+      document.head.appendChild(s);
+    });
+  }
+  // read the words on the drawing with Tesseract, entirely in this browser
+  async function readWords(cv, onProgress) {
+    await loadScript(TESS + "tesseract.min.js");
+    const abs = function (p) { return new URL(p, location.href).href; };
+    const worker = await window.Tesseract.createWorker("eng", 1, {
+      workerPath: abs(TESS + "worker.min.js"), corePath: abs(TESS), langPath: abs(TESS), gzip: false, cacheMethod: "none",
+      logger: function (m) { if (m.status === "recognizing text") onProgress(m.progress); },
+    });
+    try {
+      const res = await worker.recognize(cv);
+      // room names, and sizes such as 14'0" for the scale
+      return (res.data.words || []).filter(function (wd) { return wd.confidence > 45 && /[A-Za-z]{2,}|\d['’′`]|\d\.\d/.test(wd.text); })
+        .map(function (wd) { return { text: wd.text, x0: wd.bbox.x0, y0: wd.bbox.y0, x1: wd.bbox.x1, y1: wd.bbox.y1 }; });
+    } finally { worker.terminate(); }
+  }
+  async function impFind(readNames) {
+    const im = st.imp;
+    im.step = "busy"; im.msg = "Finding the rooms…"; im.prog = null; renderStart();
+    await new Promise(function (r) { setTimeout(r, 30); });
+    const gr = grey(im.canvas, 1000);
+    const det = App.PlanRead.detect(gr.g, gr.w, gr.h);
+    if (!det.rooms.length) {
+      im.step = "orient";
+      renderStart();
+      App.toast("No closed rooms were found. Try a sharper, straight-on image cropped to the plan, or trace the rooms by hand.", "warn");
+      return;
+    }
+    if (readNames) {
+      im.msg = "Reading the room names…"; im.prog = 0; renderStart();
+      try {
+        const words = await readWords(im.canvas, function (p) { im.prog = p; const el = App.$("#imp-prog", root); if (el) el.value = p; });
+        const s = gr.k;
+        App.PlanRead.assignWords(det, words.map(function (wd) { return { text: wd.text, x0: wd.x0 * s, y0: wd.y0 * s, x1: wd.x1 * s, y1: wd.y1 * s }; }));
+        im.read = words.length;
+      } catch (e) {
+        App.toast((e && e.message ? e.message + " " : "") + "Room types were guessed from their sizes instead.", "warn");
+        App.PlanRead.assignWords(det, []);
+      }
+    } else App.PlanRead.assignWords(det, []);
+    const site = Object.assign(P.defaultSite(), { W: im.W * FT, D: im.D * FT, facing: im.facing });
+    im.site = site; im.det = det; im.k = gr.k;
+    im.mpp = App.PlanRead.scale(det);
+    im.rect = App.PlanRead.placement(det, im.mpp, site, P.buildable(site));
+    im.rooms = App.PlanRead.toItems(det, im.rect);
+    im.step = "check";
+    renderStart();
+    if (App.track) App.track("vastu_import_found", { rooms: im.rooms.length, named: im.rooms.filter(function (r) { return !r.guess; }).length });
+  }
+  function impAnalyse() {
+    const im = st.imp, site = im.site;
+    const items = im.rooms.filter(function (r) { return r.t !== "none"; }).map(function (r) {
+      return Object.assign(P.newItem(r.t), { x: r.x, y: r.y, w: r.w, h: r.h, area: r.w * r.h });
+    });
+    const fpt = P.footprint(site, items);
+    const door = Object.assign(P.newItem("entrance"), { x: (fpt.x0 + fpt.x1) / 2, y: fpt.y1 });
+    Object.assign(door, P.snapDoor(site, door, fpt));
+    items.push(door);
+    // keep the part of the drawing the rooms were found in, under the plan
+    const b = im.det.building, s = 1 / im.k, cv = document.createElement("canvas");
+    cv.width = Math.round((b.x1 - b.x0) * s); cv.height = Math.round((b.y1 - b.y0) * s);
+    cv.getContext("2d").drawImage(im.canvas, b.x0 * s, b.y0 * s, cv.width, cv.height, 0, 0, cv.width, cv.height);
+    st.quick.W = im.W; st.quick.D = im.D; st.quick.facing = im.facing;
+    st.imp = null;
+    startPlan(items);
+    st.name = "My uploaded plan";
+    st.underlay = cv.toDataURL("image/jpeg", 0.85); st.underlayFit = "building"; st.underlayOpacity = 0.5;
+    st.underlayRect = { x0: im.rect.x0, y0: im.rect.y0, x1: im.rect.x1, y1: im.rect.y1 };
+    storeImage();
+    st.tab = REVIEW;
+    save(); renderAll();
+    App.toast("Found " + (items.length - 1) + " rooms. Here is the Vastu review. Drag the entrance to your main door if it is elsewhere.", "ok");
+    if (App.track) App.track("vastu_import_analyse");
+  }
+
+  function importHtml() {
+    const im = st.imp;
+    const head = function (n, t, lead) {
+      return '<p class="eyebrow">Analyse my plan · step ' + n + " of 3</p><h2 id=\"st-start-h\">" + t + "</h2>" + (lead ? '<p class="muted">' + lead + "</p>" : "");
+    };
+    let h = '<div class="st-start-card st-imp" role="dialog" aria-labelledby="st-start-h">';
+    if (im.step === "pick") {
+      h += head(1, "Upload your floor plan", "A photo, scan or screenshot of one floor. The planner finds the rooms, reads their names and gives you a Vastu review. Your drawing stays on this device.") +
+        '<label class="imp-drop" for="imp-file">' + App.icon("upload-simple") + "<b>Choose an image of your plan</b><span>JPG or PNG. For a PDF, take a screenshot of the plan first.</span>" +
+        '<input type="file" id="imp-file" class="sr" accept="image/*" data-act="imp-file"></label>' +
+        '<ul class="imp-tips small"><li>Crop the image to the floor plan, without the title block.</li><li>A straight-on scan or screenshot works better than a photo at an angle.</li><li>Room names written inside the rooms are read automatically.</li></ul>';
+    } else if (im.step === "orient") {
+      const dirBtn = function (d) {
+        if (!d) return '<span class="st-qmid" aria-hidden="true">road<br>faces</span>';
+        const az = DIRS.indexOf(d) * 45;
+        return '<button type="button" class="pl-dir' + (im.facing === az ? " on" : "") + '" data-act="imp-facing" data-az="' + az + '" aria-pressed="' + (im.facing === az) + '">' + d + "</button>";
+      };
+      h += head(2, "Set the road side and plot", "Turn the drawing so the road is at the bottom, then give the plot size and the direction the road side faces.") +
+        '<div class="imp-orient"><div class="imp-preview"><img src="' + im.src + '" alt="Your uploaded plan"><span class="imp-road">Road</span></div>' +
+        '<div class="btn-row tight"><button type="button" class="btn sm" data-act="imp-rot" data-by="-90">' + App.icon("arrow-right", "flip") + "Turn left</button>" +
+        '<button type="button" class="btn sm" data-act="imp-rot" data-by="90">Turn right' + App.icon("arrow-right") + "</button></div></div>" +
+        '<div class="st-q"><h3>Plot size (feet), road side first</h3><div class="st-qrow">' + QUICK_SIZES.map(function (sz) {
+          const on = im.W === sz[0] && im.D === sz[1];
+          return '<button type="button" class="st-qopt' + (on ? " on" : "") + '" data-act="imp-size" data-w="' + sz[0] + '" data-d="' + sz[1] + '" aria-pressed="' + on + '">' + sz[0] + " × " + sz[1] + "</button>";
+        }).join("") + "</div>" +
+        '<div class="pl-row2"><div class="field"><label for="imp-w">Road side (ft)</label><input type="number" id="imp-w" data-act="imp-w" min="10" max="300" step="1" value="' + im.W + '"></div>' +
+        '<div class="field"><label for="imp-d">Depth (ft)</label><input type="number" id="imp-d" data-act="imp-d" min="10" max="300" step="1" value="' + im.D + '"></div></div></div>' +
+        '<div class="st-q"><h3>Which way does the road side face?</h3><div class="pl-dirs st-qdirs">' + ["NW", "N", "NE", "W", "", "E", "SW", "S", "SE"].map(dirBtn).join("") + "</div></div>" +
+        '<div class="st-start-go"><button type="button" class="btn primary" data-act="imp-find" data-read="1">Find the rooms</button>' +
+        '<button type="button" class="btn ghost" data-act="imp-find" data-read="0">Skip reading room names</button></div>';
+    } else if (im.step === "busy") {
+      h += head(2, im.msg, im.prog != null ? "The text reader runs in this browser. The first time it downloads about 9 MB." : "") +
+        (im.prog != null ? '<progress id="imp-prog" class="imp-prog" max="1" value="' + (im.prog || 0) + '"></progress>' : '<div class="busy-bar" aria-hidden="true"></div>');
+    } else if (im.step === "check") {
+      const b = im.det.building, k = 1 / im.k;
+      const named = im.rooms.filter(function (r) { return !r.guess; }).length;
+      h += head(3, "Check the rooms", "Found " + im.rooms.length + " rooms" + (im.read != null ? ", " + named + " named from the drawing" : "") + ". Fix any type that is wrong, or mark a space as not a room. Types guessed from size are marked.") +
+        '<p class="small imp-scale">' + (im.rect.scaled ? App.icon("ruler") + "Scale read from the room sizes: the building is " + len(im.rect.x1 - im.rect.x0) + " × " + len(im.rect.y1 - im.rect.y0) + ", placed behind the front setback."
+          : App.icon("info") + "No room sizes could be read, so the drawing is fitted inside the setbacks. Room sizes are approximate.") + "</p>" +
+        '<div class="imp-check"><div class="imp-preview"><img src="' + im.src + '" alt="Your plan with the rooms found">' +
+        '<svg viewBox="0 0 ' + im.canvas.width + " " + im.canvas.height + '" preserveAspectRatio="none" aria-hidden="true">' +
+        im.det.rooms.filter(function (r) { return r.type !== "skip"; }).map(function (r, i) {
+          const x = r.x0 * k, y = r.y0 * k, w = (r.x1 - r.x0) * k, hh = (r.y1 - r.y0) * k, fs = Math.max(14, Math.min(w, hh) * 0.28);
+          return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + hh + '"/><text x="' + (x + w / 2) + '" y="' + (y + hh / 2) + '" font-size="' + fs + '">' + (i + 1) + "</text>";
+        }).join("") + '<rect class="bld" x="' + b.x0 * k + '" y="' + b.y0 * k + '" width="' + (b.x1 - b.x0) * k + '" height="' + (b.y1 - b.y0) * k + '"/></svg></div>' +
+        '<ol class="imp-list">' + im.rooms.map(function (r, i) {
+          return '<li><span class="imp-n">' + (i + 1) + "</span><div><select data-act=\"imp-type\" data-i=\"" + i + '" aria-label="Type of room ' + (i + 1) + '">' +
+            IMP_TYPES.map(function (t) { return '<option value="' + t.id + '"' + (r.t === t.id ? " selected" : "") + ">" + t.label + "</option>"; }).join("") +
+            '<option value="none"' + (r.t === "none" ? " selected" : "") + ">Not a room (leave out)</option></select>" +
+            '<small class="muted">' + (r.text ? "Read: “" + App.esc(r.text.slice(0, 40)) + "”" : "Guessed from its size") + " · " + area(r.w * r.h) + "</small></div></li>";
+        }).join("") + "</ol></div>" +
+        '<div class="st-start-go"><button type="button" class="btn primary" data-act="imp-go">Analyse this plan</button><button type="button" class="btn ghost" data-act="imp-back">Back</button></div>';
+    }
+    h += '<div class="st-start-alt"><button type="button" class="st-alt" data-act="imp-close">Cancel</button>' +
+      (im.step === "pick" || im.step === "orient" ? '<button type="button" class="st-alt" data-act="imp-trace">Trace the rooms by hand instead</button>' : "") + "</div></div>";
+    return h;
+  }
+
   function storeImage() {
     try {
-      if (st.underlay) localStorage.setItem(STORE + "-img", JSON.stringify({ src: st.underlay, fit: st.underlayFit, op: st.underlayOpacity }));
+      if (st.underlay) localStorage.setItem(STORE + "-img", JSON.stringify({ src: st.underlay, fit: st.underlayFit, op: st.underlayOpacity, rect: st.underlayRect || null }));
       else localStorage.removeItem(STORE + "-img");
     } catch (e) { /* too big or storage blocked: the image just is not kept */ }
   }
