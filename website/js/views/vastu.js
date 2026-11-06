@@ -1,14 +1,14 @@
 /* Vastu × Science planner — a full-screen design studio.
    App bar (plan name, saved state, tabs, score, undo/redo, share, menu), a contextual panel
-   (Plot · Rooms · Climate · Report, or the inspector of the selected room), and a zoomable
+   (Plot · Rooms · Climate · Review · Report, or the inspector of the selected room), and a zoomable
    drawing. On phones the panel is a bottom sheet and the tabs sit at the bottom.
    The plan engine lives in core/planner.js and the climate strategies in core/strategies.js. */
 (function (App) {
   "use strict";
   const P = App.Plan, FT = P.FT, DIRS = P.DIRS, Z = App.VASTU_ZONES;
   const STORE = "tc-vastu-plan-v2";
-  const TABS = [["plot", "Plot", "◱"], ["rooms", "Rooms", "▦"], ["climate", "Climate", "☀"], ["report", "Report", "▤"]];
-  const PLOT = 0, ROOMS = 1, CLIMATE = 2, REPORT = 3;
+  const TABS = [["plot", "Plot", "map-trifold"], ["rooms", "Rooms", "squares-four"], ["climate", "Climate", "sun"], ["review", "Review", "seal-check"], ["report", "Report", "file-text"]];
+  const PLOT = 0, ROOMS = 1, CLIMATE = 2, REVIEW = 3, REPORT = 4;
   const QUICK_SIZES = [[30, 40], [30, 50], [40, 60], [50, 80], [60, 90]];
   const DIR_NAMES = { N: "North", NE: "North-East", E: "East", SE: "South-East", S: "South", SW: "South-West", W: "West", NW: "North-West" };
 
@@ -145,7 +145,7 @@
   function tabsHtml() {
     return TABS.map(function (t, i) {
       return '<button type="button" class="st-tab' + (i === st.tab ? " on" : "") + '" data-act="tab" data-tab="' + i + '" role="tab" aria-selected="' + (i === st.tab) + '">' +
-        '<span class="st-tab-ic" aria-hidden="true">' + t[2] + "</span><span>" + t[1] + "</span></button>";
+        '<span class="st-tab-ic">' + App.icon(t[2]) + "</span><span>" + t[1] + "</span></button>";
     }).join("");
   }
   function renderBar() {
@@ -157,7 +157,7 @@
       '<button type="button" role="menuitem" data-act="import">⇪ Open plan file…</button>' +
       '<button type="button" role="menuitem" data-act="json">⤓ Download plan file</button>' +
       '<button type="button" role="menuitem" data-act="svg">⤓ Download drawing (SVG)</button>' +
-      '<button type="button" role="menuitem" data-act="tab" data-tab="3">▤ Report &amp; print</button>' +
+      '<button type="button" role="menuitem" data-act="tab" data-tab="' + REPORT + '">▤ Report &amp; print</button>' +
       '<button type="button" role="menuitem" data-act="help">? Shortcuts &amp; help</button></div>' : "";
     const score = st.pop === "score" ? '<div class="st-pop st-scorepop" role="dialog" aria-label="Plan score">' +
       '<p class="small muted">How well the rooms sit for Vastu and for this site\'s climate' + (metrics ? "" : " (pick a city in Plot to add climate)") + ".</p>" +
@@ -213,7 +213,7 @@
       return '<button type="button" class="pl-dir' + (q.facing === az ? " on" : "") + '" data-act="q-facing" data-az="' + az + '" aria-pressed="' + (q.facing === az) + '">' + d + "</button>";
     };
     el.innerHTML = '<div class="st-start-card" role="dialog" aria-labelledby="st-start-h">' +
-      '<h2 id="st-start-h">Plan a Vastu-smart, climate-smart home</h2>' +
+      '<h2 id="st-start-h">Plan a Vastu home that stays cool</h2>' +
       '<p class="muted">Answer three quick questions and the planner places every room for you. You can drag anything afterwards.</p>' +
       '<div class="st-q"><h3>1 · House type</h3><div class="st-qrow">' + App.VASTU_PRESETS.map(function (p) {
         return '<button type="button" class="st-qopt' + (q.preset === p.id ? " on" : "") + '" data-act="q-preset" data-p="' + p.id + '" aria-pressed="' + (q.preset === p.id) + '">' + p.label + "</button>";
@@ -238,7 +238,7 @@
     const focusables = function () { return App.$$("input, select, button, a[href]", el); };
     const fid = inside ? active.id : null, fidx = inside ? focusables().indexOf(active) : -1;
     const it = find(st.sel);
-    el.innerHTML = it ? inspector(ctx(), P.evaluate(ctx(), st.items), it) : [panelSite, panelRooms, panelClimate][st.tab]();
+    el.innerHTML = it ? inspector(ctx(), P.evaluate(ctx(), st.items), it) : [panelSite, panelRooms, panelClimate, panelReview][st.tab]();
     const f = fid ? document.getElementById(fid) : fidx >= 0 ? focusables()[Math.min(fidx, focusables().length - 1)] : null;
     if (f) f.focus({ preventScroll: true });
   }
@@ -395,7 +395,7 @@
   function panelClimate() {
     let h = '<h2 class="pl-h">Keep it cool</h2>';
     if (!metrics) {
-      return h + '<section class="pl-sec"><p>Pick your city to get windows, wall thickness, roof insulation, shading, ventilation and planting worked out from its weather data.</p>' + locBlock() + "</section>" + nextBtn("Next: report");
+      return h + '<section class="pl-sec"><p>Pick your city to get windows, wall thickness, roof insulation, shading, ventilation and planting worked out from its weather data.</p>' + locBlock() + "</section>" + nextBtn("Next: review");
     }
     const sx = strategies(), nm = {};
     P.numbered(st.items).forEach(function (x) { nm[x.uid] = x.n || x.auto || App.VASTU_ROOM[x.t].label; });
@@ -426,7 +426,72 @@
     h += sec("Cool-home checklist", '<ul class="pl-checks">' + sx.checks.map(function (c) {
       return '<li class="' + c.status + '"><i aria-hidden="true">' + icon[c.status] + "</i><div><b>" + App.esc(c.title) + "</b><span>" + App.esc(c.text) + "</span></div></li>";
     }).join("") + "</ul>", true);
+    return h + nextBtn("Next: review");
+  }
+
+  /* ---------- plan review: an opinion on the plan as drawn ---------- */
+  function panelReview() {
+    let h = '<h2 class="pl-h">Plan review</h2>';
+    if (!st.items.some(function (it) { return def(it).kind === "room"; })) {
+      return h + '<section class="pl-sec"><p>Add rooms or trace your drawing first. The review then says what works for Vastu, which rooms to swap or move, and what to do in rooms that stay.</p>' +
+        '<div class="btn-row tight"><button type="button" class="btn sm primary" data-act="tab" data-tab="' + ROOMS + '">Add rooms</button><button type="button" class="btn sm" data-act="trace-start">Trace a drawing</button></div></section>';
+    }
+    const rv = P.review(ctx(), st.items), nm = names();
+    h += '<p class="small muted">An opinion on the plan as drawn' + (st.underlay ? " over your uploaded drawing" : "") + ": what works for Vastu, what to change, and what to do in rooms that stay." +
+      (metrics ? " Changes are also checked against the " + App.esc(App.state.ds.meta.city) + " climate." : "") + "</p>";
+    h += '<div class="pl-verdict v-' + rv.band[0] + '"><span class="pl-ring" style="--deg:' + Math.round(360 * rv.vastu) + 'deg"><span>' + pct(rv.vastu) + "</span></span>" +
+      "<div><b>" + rv.band[1] + "</b><span>" + rv.band[2] + "</span></div></div>";
+    if (rv.changes.length && rv.projected > rv.vastu + 0.005) h += '<p class="small">Making the changes below lifts the Vastu score from <b>' + pct(rv.vastu) + "</b> to about <b>" + pct(rv.projected) + "</b>.</p>";
+    h += '<section class="pl-sec"><h3>Changes that help most</h3>' + (rv.changes.length ? '<ol class="pl-rv">' + rv.changes.map(function (c, k) {
+      const cl = metrics && Math.abs(c.climate) > 0.02 ? (c.climate > 0 ? " · cooler too" : " · costs some comfort; check the Climate tab") : "";
+      return '<li><div class="pl-rv-t"><span class="tag ' + (c.kind === "swap" ? "preferred" : "acceptable") + '">' + (c.kind === "swap" ? "Swap" : "Move") + "</span><b>" + App.esc(c.text) + "</b></div>" +
+        "<span>" + App.esc(c.detail) + '</span><small class="muted">Plan score +' + Math.max(1, Math.round(100 * c.plan)) + cl + "</small>" +
+        '<div class="btn-row tight"><button type="button" class="btn sm primary" data-act="rv-apply" data-k="' + k + '">Apply</button>' +
+        '<button type="button" class="btn sm ghost" data-act="pick" data-uid="' + c.a + '">Show on plan</button></div></li>';
+    }).join("") + "</ol>" + (rv.changes.filter(function (c) { return c.kind === "swap"; }).length > 1 ? '<button type="button" class="btn sm" data-act="rv-swaps">Apply all swaps</button>' : "")
+      : '<p class="small">No swap or move would improve this plan. Every room is in a preferred or acceptable zone.</p>') + "</section>";
+    if (rv.centre.length) {
+      h += '<section class="pl-sec"><h3>Keep the centre open</h3><p class="small">The Brahmasthan, the middle ninth of the plot, is best left open as a hall, courtyard or passage. ' +
+        rv.centre.map(function (r) { return App.esc(nm[r.it.uid]); }).join(", ") + (rv.centre.length > 1 ? " sit" : " sits") + " there now.</p></section>";
+    }
+    if (rv.stay.length) {
+      h += '<section class="pl-sec"><h3>If these rooms stay where they are</h3><ul class="pl-slist">' + rv.stay.map(function (x) {
+        return "<li><span><b>" + App.esc(nm[x.uid] || x.name) + "</b> (" + App.esc(x.zone) + ") · " + App.esc(x.text) + "</span></li>";
+      }).join("") + "</ul></section>";
+    }
+    if (rv.good.length) {
+      h += '<section class="pl-sec"><h3>What already works</h3><ul class="pl-goodlist">' + rv.good.map(function (r) {
+        return '<li><span class="tag preferred">' + App.esc(App.zoneById(r.s.zone).name) + "</span>" + App.esc(nm[r.it.uid]) + "</li>";
+      }).join("") + "</ul></section>";
+    }
+    if (metrics) {
+      const todo = strategies().checks.filter(function (c) { return c.status === "todo"; }).slice(0, 3);
+      if (todo.length) h += '<section class="pl-sec"><h3>For comfort</h3><ul class="pl-slist">' + todo.map(function (c) { return "<li><span><b>" + App.esc(c.title) + "</b> · " + App.esc(c.text) + "</span></li>"; }).join("") +
+        '</ul><button type="button" class="btn sm ghost" data-act="tab" data-tab="' + CLIMATE + '">All climate strategies</button></section>';
+    } else h += '<section class="pl-sec"><p class="small muted">Pick your city in Plot to have every change checked against your site\'s sun, heat and breeze too.</p></section>';
     return h + nextBtn("Next: report");
+  }
+  function names() {
+    const nm = {};
+    P.numbered(st.items).forEach(function (x) { nm[x.uid] = x.n || x.auto || App.VASTU_ROOM[x.t].label; });
+    return nm;
+  }
+  function reviewCard() {
+    if (!st.items.some(function (it) { return def(it).kind === "room"; })) return "";
+    const rv = P.review(ctx(), st.items), nm = names();
+    return '<section class="card pl-rep-review"><h2>Plan review</h2><div class="pl-verdict v-' + rv.band[0] + '"><span class="pl-ring" style="--deg:' + Math.round(360 * rv.vastu) + 'deg"><span>' + pct(rv.vastu) + "</span></span>" +
+      "<div><b>" + rv.band[1] + "</b><span>" + rv.band[2] + "</span></div></div>" +
+      (rv.changes.length ? '<h3>Suggested changes</h3><ol class="pl-rv static">' + rv.changes.map(function (c) {
+        return "<li><b>" + App.esc(c.text) + "</b><span>" + App.esc(c.detail) + " (plan score +" + Math.max(1, Math.round(100 * c.plan)) + ")</span></li>";
+      }).join("") + "</ol>" : '<p class="small">No swap or move would improve this plan.</p>') +
+      (rv.stay.length ? '<h3>If these rooms stay</h3><ul class="pl-slist">' + rv.stay.map(function (x) { return "<li><span><b>" + App.esc(nm[x.uid] || x.name) + "</b> · " + App.esc(x.text) + "</span></li>"; }).join("") + "</ul>" : "") +
+      (rv.good.length ? '<h3>What already works</h3><p class="small">' + rv.good.map(function (r) { return App.esc(nm[r.it.uid]) + " (" + App.esc(App.zoneById(r.s.zone).name) + ")"; }).join(", ") + ".</p>" : "") + "</section>";
+  }
+  function applyReview(c) {
+    const a = find(c.a);
+    if (!a) return;
+    if (c.kind === "swap") { const b = find(c.b); if (!b) return; Object.assign(a, c.ra); Object.assign(b, c.rb); }
+    else { Object.assign(a, c.pos); if (def(a).kind === "door") Object.assign(a, P.snapDoor(st.site, a, fp())); }
   }
 
   function inspector(c, ev, it) {
@@ -1012,6 +1077,8 @@
     switch (a) {
       case "tab": st.tab = +el.dataset.tab; st.sel = null; st.pop = null; if (st.tab !== ROOMS) st.zoneInfo = null; if (mobile() && st.sheet === "peek") st.sheet = "half"; renderAll(); if (st.tab === REPORT) window.scrollTo(0, 0); break;
       case "next": st.tab = Math.min(REPORT, st.tab + 1); st.sel = null; renderAll(); break;
+      case "rv-apply": { const c = P.review(ctx(), st.items).changes[+el.dataset.k]; if (c) { change(function () { applyReview(c); }); App.toast(c.text + ". Undo with Ctrl+Z.", "ok"); } } break;
+      case "rv-swaps": { const cs = P.review(ctx(), st.items).changes.filter(function (c) { return c.kind === "swap"; }); change(function () { cs.forEach(applyReview); }); App.toast("Applied " + cs.length + " swaps.", "ok"); } break;
       case "sheet": st.sheet = st.sheet === "peek" ? "half" : st.sheet === "half" ? "full" : "peek"; st.vb = null; renderAll(); break;
       case "pop": st.pop = st.pop === el.dataset.pop ? null : el.dataset.pop; renderBar(); break;
       case "undo": undo(); break;
@@ -1067,7 +1134,7 @@
         if (App.track) App.track("vastu_trace_start");
         renderAll(); break;
       case "tool": st.tool = st.tool === el.dataset.t ? null : el.dataset.t; renderPanel(); renderCanvas(); renderFloat(); if (mobile() && st.tool) { st.sheet = "peek"; renderAll(); } break;
-      case "trace-done": st.trace = false; st.tool = null; st.show.zones = true; renderAll(); App.toast("Plan traced — " + st.items.length + " items. Check the scores, then see the climate strategies.", "ok"); break;
+      case "trace-done": st.trace = false; st.tool = null; st.show.zones = true; st.tab = REVIEW; st.sel = null; renderAll(); App.toast("Plan traced: " + st.items.length + " items. Here is the review of your plan.", "ok"); break;
       case "trace-climate": st.trace = false; st.tool = null; st.tab = CLIMATE; renderAll(); break;
       case "print": if (App.track) App.track("vastu_print"); window.print(); break;
       case "share": st.pop = null; renderBar(); share(); break;
@@ -1248,6 +1315,7 @@
       "<tr><th>Climate</th><td>" + (ds ? App.esc(ds.meta.city) + " — " + App.S.NBC_ZONES[ds.nbc.zone].label + " (NBC 2016)" : "Not set — Vastu-only scores") + "</td></tr>" +
       "<tr><th>Balance</th><td>" + (metrics ? Math.round(st.weight * 100) + " % Vastu / " + Math.round((1 - st.weight) * 100) + " % building science" : "Vastu only") + "</td></tr></tbody></table></section>" +
       '<section class="card pl-rep-plan"><h2>Plan</h2>' + (function () { const m = svgMarkup({ static: true }); return '<svg class="pl-svg static" viewBox="' + m.vb + '" role="img" aria-label="Plan drawing">' + m.body + "</svg>"; })() + "</section></div>";
+    h += reviewCard();
     h += '<section class="card"><h2>Room schedule</h2><div class="table-wrap"><table class="pl-sched"><thead><tr><th>Room</th><th>Size</th><th>Zone</th><th>Vastu</th><th>Climate</th><th>Score</th></tr></thead><tbody>' +
       ev.scored.map(function (r) {
         const d = App.VASTU_ROOM[r.it.t], z = App.zoneById(r.s.zone);

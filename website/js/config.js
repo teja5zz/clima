@@ -8,8 +8,8 @@ window.BRAND = {
   wordmarkLight: "img/trikrt-wordmark-white.svg", // white wordmark (hero, footer)
   mark: "img/trikrt-mark.svg",                  // square icon
   product: "Climate & Vastu Studio",
-  owner: "Tejas P R, BE, MS — Chartered Structural Engineer",
-  tagline: "Climate-smart, Vastu-aware design for Indian homes",
+  owner: "Tejas P R, BE, MS · Chartered Structural Engineer",
+  tagline: "Plan a Vastu home that stays cool in your city",
   website: "https://www.tejas-constructions.in",
   email: "info@tejas-constructions.in",
   phone: "+91 81975 17555",

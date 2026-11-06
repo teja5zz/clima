@@ -404,6 +404,105 @@ window.App = window.App || {};
     }).sort(function (a, c) { return c.s.total - a.s.total; }).slice(0, n || 3);
   };
 
+  /* ---------- plan review ---------- */
+  // What to do inside a room when it cannot move (traditional in-room placement).
+  const IN_ROOM = {
+    kitchen: "Keep the stove in the room's south-east corner so the cook faces east, and the sink away from the stove.",
+    master: "Put the bed against the south or west wall with the head to the south; keep the room's north-east corner light.",
+    children: "Place the study table so the child faces east or north.",
+    guest: "Place the bed with the head to the south or east.",
+    pooja: "Let the deity face west so you face east while praying; keep it off a shared toilet wall.",
+    toilets: "Keep the WC on the room's west or south side, aligned north–south, with an exhaust on the outside wall.",
+    living: "Keep heavy furniture on the south and west walls and the north-east of the room open.",
+    staircase: "Let the stair climb clockwise and keep the space under it for storage, not a toilet or pooja.",
+    entrance: "Keep the doorway well lit and uncluttered; avoid facing a staircase or toilet door directly.",
+    store: "Stack the heaviest items on the south and west walls.",
+  };
+  P.IN_ROOM = IN_ROOM;
+  const KEY_ROOMS = ["entrance", "kitchen", "master", "pooja", "toilets", "staircase"];
+
+  // An opinion on the plan as drawn: what works, which rooms to swap or move, and what to do
+  // in rooms that stay. Swaps exchange two rooms' spaces, which keeps a traced plan buildable.
+  P.review = function (ctx, items) {
+    const ev = P.evaluate(ctx, items), site = ctx.site;
+    const c2 = Object.assign({}, ctx, { bounds: P.footprint(site, items) });
+    const byUid = {};
+    ev.scored.forEach(function (r) { byUid[r.it.uid] = r; });
+    const isRoom = function (it) { return App.VASTU_ROOM[it.t].kind === "room"; };
+    const fits = function (it, rect) {
+      const nbc = App.VASTU_ROOM[it.t].nbc;
+      return !nbc || (rect.w * rect.h >= nbc[0] - 0.05 && Math.min(rect.w, rect.h) >= nbc[1] - 0.05);
+    };
+    const score = function (it, rect) { return P.scoreItem(c2, Object.assign({}, it, rect)); };
+
+    const good = [], weak = [];
+    ev.scored.forEach(function (r) {
+      const v = App.vastuVerdict(App.VASTU_ROOM[r.it.t], r.s.zone);
+      if (v === "Preferred") good.push(r);
+      else if (v !== "Acceptable") weak.push(r);
+    });
+
+    // swaps between two rooms that are both better off in the other's space
+    const swaps = [];
+    const rooms = items.filter(isRoom);
+    for (let i = 0; i < rooms.length; i++) {
+      for (let j = i + 1; j < rooms.length; j++) {
+        const a = rooms[i], b = rooms[j];
+        if (a.t === b.t) continue;
+        const ra = { x: a.x, y: a.y, w: a.w, h: a.h }, rb = { x: b.x, y: b.y, w: b.w, h: b.h };
+        if (!fits(a, rb) || !fits(b, ra)) continue;
+        const sa = byUid[a.uid].s, sb = byUid[b.uid].s, na = score(a, rb), nb = score(b, ra);
+        if (na.vastu < sa.vastu - 0.01 && na.vastu < 0.65 || nb.vastu < sb.vastu - 0.01 && nb.vastu < 0.65) continue;
+        const gain = na.vastu + nb.vastu - sa.vastu - sb.vastu;
+        if (gain >= 0.3) swaps.push({ kind: "swap", a: a.uid, b: b.uid, ra: rb, rb: ra, gain: gain,
+          climate: (na.total + nb.total) - (sa.total + sb.total),
+          text: "Swap " + P.label(a) + " and " + P.label(b),
+          detail: P.label(a) + " moves to the " + App.zoneById(na.zone).name + " (" + App.vastuVerdict(App.VASTU_ROOM[a.t], na.zone).toLowerCase() + "), " +
+            P.label(b) + " to the " + App.zoneById(nb.zone).name + " (" + App.vastuVerdict(App.VASTU_ROOM[b.t], nb.zone).toLowerCase() + ")." });
+      }
+    }
+    swaps.sort(function (p, q) { return q.gain - p.gain; });
+    const taken = {}, changes = [];
+    swaps.forEach(function (sw) {
+      if (taken[sw.a] || taken[sw.b] || changes.length >= 4) return;
+      taken[sw.a] = taken[sw.b] = 1;
+      changes.push(sw);
+    });
+
+    // single moves for what is left in a weak zone
+    weak.forEach(function (r) {
+      const it = r.it;
+      if (taken[it.uid]) return;
+      const best = P.bestSpots(c2, it, 3).find(function (sp) { return sp.s.zone !== r.s.zone && sp.s.vastu > r.s.vastu; });
+      if (!best) return;
+      taken[it.uid] = 1;
+      changes.push({ kind: "move", a: it.uid, pos: best.pos, gain: best.s.vastu - r.s.vastu, climate: best.s.total - r.s.total,
+        text: "Move " + P.label(it) + " to the " + App.zoneById(best.s.zone).name,
+        detail: "It sits in the " + App.zoneById(r.s.zone).name + " now (" + App.vastuVerdict(App.VASTU_ROOM[it.t], r.s.zone).toLowerCase() + ")." +
+          (App.VASTU_ROOM[it.t].kind === "room" ? " A move redraws the plan around it, so check the rooms next to it afterwards." : "") });
+    });
+    changes.sort(function (p, q) { return (q.kind === "swap") - (p.kind === "swap") || q.gain - p.gain; });
+    // what each change adds to the plan's average Vastu score
+    changes.forEach(function (c) { c.plan = c.gain / Math.max(1, ev.scored.length); });
+
+    // in-room advice for rooms that stay where they are
+    const stay = weak.filter(function (r) { return !taken[r.it.uid] && IN_ROOM[r.it.t]; }).map(function (r) {
+      return { uid: r.it.uid, name: P.label(r.it), zone: App.zoneById(r.s.zone).name, text: IN_ROOM[r.it.t] };
+    });
+
+    // the centre of the house
+    const centre = ev.scored.filter(function (r) { return r.s.zone === "C" && App.VASTU_ROOM[r.it.t].avoid.indexOf("C") >= 0; });
+
+    const v = ev.vastu == null ? 0 : ev.vastu;
+    const after = changes.reduce(function (a, c) { return a + c.gain; }, 0) / Math.max(1, ev.scored.length);
+    // the rooms Vastu cares most about weigh more than the average
+    const key = weak.filter(function (r) { return KEY_ROOMS.indexOf(r.it.t) >= 0; });
+    const band = v >= 0.8 && !key.length ? ["strong", "Strong Vastu fit", "Most rooms sit in their preferred zones. The changes below are refinements."]
+      : v >= 0.6 && key.length < 2 ? ["fair", "Good bones, a few rooms to rethink", "The plan works, but some key rooms sit outside their best zones."]
+      : ["weak", "Needs rework before building", "Several important rooms are in the wrong zones. Swapping a few spaces fixes most of it."];
+    return { ev: ev, vastu: v, key: key, projected: Math.min(1, v + after), band: band, good: good, weak: weak, changes: changes, stay: stay, centre: centre };
+  };
+
   /* ---------- items ---------- */
   let seq = 0;
   P.newItem = function (t, area) {

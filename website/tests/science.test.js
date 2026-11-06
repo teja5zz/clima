@@ -231,3 +231,20 @@ test("windows, walls, roof and checklist for keeping cool", () => {
     assert.ok(s.vent.crossCount <= s.vent.habitable);
   }
 });
+
+test("plan review suggests swapping rooms back into their zones", () => {
+  const P = global.App.Plan, site = P.defaultSite(), ctx = { site, metrics: null, weight: 1 };
+  const good = P.autoArrange(ctx, P.fromPreset("3bhk"));
+  assert.strictEqual(P.review(ctx, good).band[0], "strong");
+  const items = good.map((it) => Object.assign({}, it));
+  const k = items.find((i) => i.t === "kitchen"), l = items.find((i) => i.t === "living");
+  const rk = { x: k.x, y: k.y, w: k.w, h: k.h };
+  Object.assign(k, { x: l.x, y: l.y, w: l.w, h: l.h });
+  Object.assign(l, rk);
+  const rv = P.review(ctx, items);
+  assert.notStrictEqual(rv.band[0], "strong"); // a kitchen in an avoid zone caps the verdict
+  const sw = rv.changes[0];
+  assert.strictEqual(sw.kind, "swap");
+  assert.deepStrictEqual([sw.a, sw.b].sort(), [k.uid, l.uid].sort());
+  assert.ok(rv.projected > rv.vastu);
+});

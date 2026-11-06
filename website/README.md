@@ -9,7 +9,9 @@ Firebase Hosting, plus one Cloud Function in Mumbai (`asia-south1`) that fetches
 
 All company details live in **`js/config.js`**: name, wordmarks, tagline, phone, email, website, address, services and colours.
 
-Brand assets are in `img/`: `trikrt-wordmark.svg` (forest), `trikrt-wordmark-white.svg` (on photos and the footer), `trikrt-mark.svg` (square icon: the logo's macron, stem and ring), `favicon-32.png`, `apple-touch-icon.png`, `og-image.jpg` (link previews) and `forest.jpg` (hero photo). The wordmark is drawn as vector outlines from Outfit (SIL Open Font License) with the macron and ring added, to match the trikrt banner. Colours: forest `#173a2a`, green `#2f7d4f`, moss `#b9dc8c`, mist `#f4f6f2`, sunlight `#e0952c` (selection on the plan only).
+Brand assets are in `img/`: `trikrt-wordmark.svg` (forest), `trikrt-wordmark-white.svg` (on photos and the footer), `trikrt-mark.svg` (square icon: the logo's macron, stem and ring), `favicon-32.png`, `apple-touch-icon.png`, `og-image.jpg` (link previews) and `forest.jpg` (hero photo). The wordmark is drawn as vector outlines from Outfit (SIL Open Font License) with the macron and ring added, to match the trikrt banner. Colours: forest `#173a2a`, green `#2f7d4f`, moss `#b9dc8c`, mist `#f4f6f2`, sunlight `#e0952c` (selection on the plan only). Dark surfaces use `#131209`.
+
+Design system (`css/styles.css`): one typeface, Manrope; font sizes on Tailwind's type scale as named text styles (`heading-1` to `caption-5`); spacing only from the `--s-*` tokens (2 to 96 px); Tailwind radii; flat backgrounds; one motion curve, `cubic-bezier(.22, 1, .36, 1)`, with reduced-motion support. Icons are Phosphor (regular, MIT), inlined in `js/icons.js` and drawn with `App.icon(name)`. `img/planner-shot.jpg` is the hero screenshot of the planner's Review tab.
 
 ## Tools
 

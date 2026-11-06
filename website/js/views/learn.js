@@ -32,7 +32,7 @@
   App.views.learn = {
     html: function () {
       const sec = function (t, body) { return '<details class="acc"><summary>' + t + "</summary><div>" + body + "</div></details>"; };
-      return App.pageHead("Methods & guide", "How each number on this site is calculated, and how to use it in design.") +
+      return App.pageHead("Methods and guide", "How each number on this site is calculated, and how to use it in design.") +
         App.card("Getting started", "<ol class='steps'><li>Download the EPW weather file nearest to your site (TMYx files from Climate.OneBuilding.org are free; ISHRAE files are licensed).</li>" +
           "<li>Drop the .epw or .zip on the home page. Everything is computed in your browser — nothing is uploaded.</li>" +
           "<li>Read the <a href='#/summary'>Climate summary</a> and <a href='#/india'>Climate zone</a> first, then the <a href='#/strategies'>Strategy advisor</a>.</li>" +
@@ -59,16 +59,49 @@
     },
   };
 
+  App.views.privacy = {
+    title: "Privacy policy · trikrt",
+    html: function () {
+      const b = window.BRAND;
+      return '<article class="legal">' + App.pageHead("Privacy policy") +
+        App.card("What stays on your device", "<p>Weather files, plan images, plans and everything you type are processed in your browser. They are never uploaded to " + App.esc(b.company) + " or anyone else. Plans are saved in your browser's storage so you can come back to them; clearing your browser data removes them.</p>" +
+          "<p>Station weather files are public data. They are downloaded from this site, or through our Firebase server from the original source when a file is not stored here.</p>") +
+        App.card("Usage statistics", "<p>If you allow it, Google Analytics for Firebase records anonymous page views and which tools are used, for example that a plan was printed or which climate zone a loaded file belongs to. Advertising features and Google signals are switched off. Nothing you draw or type is sent.</p>" +
+          '<p>You can change your choice at any time with <button type="button" class="linklike" onclick="App.showConsent()">usage statistics settings</button>, also at the bottom of every page.</p>') +
+        App.card("Contact", "<p>Questions about your data: " + (b.email ? '<a href="mailto:' + App.esc(b.email) + '">' + App.esc(b.email) + "</a>" : App.esc(b.company)) + ".</p>") + "</article>";
+    },
+  };
+
+  App.views.terms = {
+    title: "Terms of use · trikrt",
+    html: function () {
+      const b = window.BRAND;
+      return '<article class="legal">' + App.pageHead("Terms of use") +
+        App.card("Free tools for early design", "<p>The planner and climate tools are free to use for personal and professional projects. Results are guidance for early design and discussion. They are not drawings for construction, a structural design or a statement of code compliance.</p>" +
+          "<p>Have final drawings, structure and services checked by a qualified architect or engineer, and check code values against the latest notified NBC, ECBC and Eco Niwas Samhita.</p>") +
+        App.card("No warranty", "<p>The tools are provided as they are, without warranty of any kind. " + App.esc(b.company) + " is not liable for decisions made from their results.</p>") +
+        App.card("Credits and licences", '<p>The climate engine is an independent edition of the CBE Clima Tool, © 2021 Center for the Built Environment, UC Berkeley, under the MIT licence. Weather data remains © its providers. See <a href="#/about">About and citation</a> for all references.</p>') + "</article>";
+    },
+  };
+
+  App.views.notfound = {
+    title: "Page not found · trikrt",
+    html: function () {
+      return '<section class="nf"><p class="nf-code">404</p><h1>This page does not exist</h1>' +
+        "<p>The link may be old or mistyped. Start a plan, or go back to the home page to find a tool.</p>" +
+        '<div class="btn-row"><a class="btn primary" href="#/vastu">Start your free plan</a><a class="btn" href="#/home">Go to the home page</a></div></section>';
+    },
+  };
+
   App.views.about = {
     html: function () {
       const b = window.BRAND;
-      return App.pageHead("About & citation") +
+      return App.pageHead("About and citation") +
         App.card("About " + App.esc(b.company), "<p><strong>" + App.esc(b.product) + "</strong> is a free climate-analysis and passive-design platform by " + App.esc(b.company) +
           ", built to help architects, engineers, students, builders and home-owners across India design buildings that are comfortable, healthy and low-energy in a warming climate.</p>" +
           "<p>All calculations run locally in your web browser. Weather files you load are never uploaded to any server.</p>" +
           '<p class="muted small">Edit <code>js/config.js</code> to set the company name, contact details and brand colour shown throughout the site.</p>') +
-        App.card("Privacy", "<p>Weather files, plan images and everything you type are processed in your browser and are never uploaded. When you load a station, its public weather file is fetched through our Firebase server from the original source.</p>" +
-          "<p>If you allow it, Google Analytics for Firebase records anonymous page views and which tools are used (for example, that a Vastu plan was printed or which climate zone a loaded file belongs to). Advertising features and Google signals are switched off. You can change your choice at any time with “Usage statistics settings” at the bottom of every page.</p>") +
+        App.card("Privacy and terms", '<p>Your plans and files stay on your device. Read the <a href="#/privacy">privacy policy</a> and the <a href="#/terms">terms of use</a>.</p>') +
         App.card("How to cite", '<div class="cite-box"><p>When you use results from this site, please cite the open-source engine it is built on:</p>' +
           "<blockquote>Betti, G., Tartarini, F., Nguyen, C., Schiavon, S. CBE Clima Tool: A free and open-source web application for climate analysis tailored to sustainable building design. <em>Build. Simul.</em> (2023). " +
           '<a href="https://doi.org/10.1007/s12273-023-1090-5" target="_blank" rel="noopener">https://doi.org/10.1007/s12273-023-1090-5</a></blockquote>' +

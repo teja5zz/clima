@@ -9,28 +9,28 @@ window.App = window.App || {};
 
   App.NAV = [
     { group: "Start", items: [
-      { id: "home", label: "Home & choose location", icon: "◎" },
+      { id: "home", label: "Home and choose location", icon: "house" },
     ] },
     { group: "Climate analysis", items: [
-      { id: "summary", label: "Climate summary", icon: "▤", needsData: true },
-      { id: "temperature", label: "Temperature & humidity", icon: "🌡", needsData: true },
-      { id: "sun", label: "Sun & clouds", icon: "☀", needsData: true },
-      { id: "wind", label: "Wind", icon: "≋", needsData: true },
-      { id: "psychro", label: "Psychrometric chart", icon: "◔", needsData: true },
-      { id: "explorer", label: "Data explorer", icon: "⌕", needsData: true },
+      { id: "summary", label: "Climate summary", icon: "chart-bar", needsData: true },
+      { id: "temperature", label: "Temperature and humidity", icon: "thermometer-simple", needsData: true },
+      { id: "sun", label: "Sun and clouds", icon: "cloud-sun", needsData: true },
+      { id: "wind", label: "Wind", icon: "wind", needsData: true },
+      { id: "psychro", label: "Psychrometric chart", icon: "drop", needsData: true },
+      { id: "explorer", label: "Data explorer", icon: "chart-scatter", needsData: true },
     ] },
     { group: "Design for India", items: [
-      { id: "vastu", label: "Vastu × Science planner", icon: "✷" },
-      { id: "india", label: "Climate zone & IMAC comfort", icon: "⌂", needsData: true },
-      { id: "strategies", label: "Design strategy advisor", icon: "✦", needsData: true },
-      { id: "ventilation", label: "Natural ventilation", icon: "⇋", needsData: true },
-      { id: "outdoor", label: "Outdoor comfort & heat stress", icon: "☂", needsData: true },
-      { id: "shading", label: "Shading designer", icon: "▱", needsData: true },
-      { id: "envelope", label: "Envelope & ENS calculator", icon: "▦" },
+      { id: "vastu", label: "Vastu × Science planner", icon: "compass" },
+      { id: "india", label: "Climate zone and IMAC comfort", icon: "map-trifold", needsData: true },
+      { id: "strategies", label: "Design strategy advisor", icon: "lightbulb", needsData: true },
+      { id: "ventilation", label: "Natural ventilation", icon: "arrows-left-right", needsData: true },
+      { id: "outdoor", label: "Outdoor comfort and heat stress", icon: "umbrella", needsData: true },
+      { id: "shading", label: "Shading designer", icon: "sun-horizon", needsData: true },
+      { id: "envelope", label: "Envelope and ENS calculator", icon: "wall" },
     ] },
     { group: "Resources", items: [
-      { id: "learn", label: "Methods & guide", icon: "?" },
-      { id: "about", label: "About & citation", icon: "i" },
+      { id: "learn", label: "Methods and guide", icon: "book-open" },
+      { id: "about", label: "About and citation", icon: "info" },
     ] },
   ];
 
@@ -105,9 +105,9 @@ window.App = window.App || {};
   };
 
   App.needData = function () {
-    return '<div class="empty"><div class="empty-icon">☁</div><h2>Load a weather file to begin</h2>' +
-      "<p>This tool analyses an EnergyPlus Weather (EPW) file for your site. Pick an Indian city or upload a file on the home page.</p>" +
-      '<a class="btn primary" href="#/home">Choose weather data</a></div>';
+    return '<div class="empty"><div class="empty-icon">' + App.icon("map-pin") + '</div><h2>Pick your city to begin</h2>' +
+      "<p>This tool reads the weather file for your site. Choose the nearest of over 400 Indian weather stations, or upload your own EPW file.</p>" +
+      '<a class="btn primary" href="#/home#stations">Choose my city</a></div>';
   };
 
   /* ---------- data loading ---------- */
@@ -176,28 +176,69 @@ window.App = window.App || {};
   };
 
   /* ---------- navigation ---------- */
-  App.buildNav = function () {
-    const html = App.NAV.map(function (g) {
+  function navLinks(cls) {
+    return App.NAV.map(function (g) {
       return '<div class="nav-group"><div class="nav-title">' + g.group + "</div>" + g.items.map(function (it) {
-        return '<a class="nav-link" data-view="' + it.id + '" href="#/' + it.id + '"><span class="nav-ic" aria-hidden="true">' + it.icon + "</span>" + it.label + "</a>";
+        return '<a class="' + cls + '" data-view="' + it.id + '" href="#/' + it.id + '">' + App.icon(it.icon, "nav-ic") + "<span>" + it.label + "</span></a>";
       }).join("") + "</div>";
     }).join("");
-    App.$("#nav").innerHTML = html;
+  }
+  App.buildNav = function () {
+    App.$("#nav").innerHTML = navLinks("nav-link");
+    App.$("#menu-nav").innerHTML = '<a class="btn primary menu-cta" href="#/vastu">Start your free plan</a>' + navLinks("nav-link");
+  };
+
+  // Full-height menu: links arrive one after another, 60 ms apart, the whole run capped at 400 ms.
+  App.setMenu = function (open) {
+    const menu = App.$("#menu"), btn = App.$("#nav-toggle");
+    if (open === document.body.classList.contains("menu-open")) return;
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    if (open) {
+      const links = App.$$(".nav-title, .nav-link, .menu-cta", menu), step = Math.min(60, 400 / Math.max(1, links.length - 1));
+      links.forEach(function (a, i) { a.style.setProperty("--d", Math.round(i * step) + "ms"); });
+      menu.hidden = false;
+      requestAnimationFrame(function () { requestAnimationFrame(function () { document.body.classList.add("menu-open"); }); });
+    } else {
+      document.body.classList.remove("menu-open");
+      setTimeout(function () { if (!document.body.classList.contains("menu-open")) menu.hidden = true; }, 500);
+    }
   };
 
   App.updateNav = function () {
     const cur = App.currentView();
+    const all = App.NAV.flatMap(function (g) { return g.items; });
     App.$$(".nav-link").forEach(function (a) {
-      const it = App.NAV.flatMap(function (g) { return g.items; }).find(function (x) { return x.id === a.dataset.view; });
+      const it = all.find(function (x) { return x.id === a.dataset.view; });
       a.classList.toggle("active", a.dataset.view === cur);
       a.classList.toggle("locked", !!(it.needsData && !App.state.ds));
       if (a.dataset.view === cur) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });
+    const group = cur === "vastu" || cur === "learn" || cur === "about" ? cur : ["home", "notfound", "privacy", "terms"].indexOf(cur) >= 0 ? "" : "climate";
+    App.$$("[data-nav]").forEach(function (a) {
+      a.classList.toggle("on", a.dataset.nav === group);
+      if (a.dataset.nav === group) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    });
   };
 
+  // "#/view", "#/view?query" or "#/view#section"; an unknown view is a 404.
   App.currentView = function () {
-    const h = location.hash.replace(/^#\/?/, "").split("?")[0];
-    return App.views[h] ? h : "home";
+    const h = location.hash.replace(/^#\/?/, "").split(/[?#]/)[0];
+    return !h ? "home" : App.views[h] ? h : "notfound";
+  };
+
+  // Sections rise 32 px and fade in once as they enter the viewport.
+  App.reveal = function (root) {
+    const els = App.$$("[data-reveal]", root);
+    if (!els.length) return;
+    if (!("IntersectionObserver" in window) || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      els.forEach(function (el) { el.classList.add("in"); });
+      return;
+    }
+    const io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
+    }, { rootMargin: "0px 0px -10% 0px" });
+    els.forEach(function (el) { io.observe(el); });
   };
 
   App.route = function () {
@@ -212,12 +253,15 @@ window.App = window.App || {};
       main.innerHTML = view.html();
       if (view.mount) view.mount(main);
     }
-    // full-screen tools (the planner) hide the site navigation and footer
+    // full-screen tools (the planner) hide the site navigation and footer; the landing page has no sidebar
     document.body.classList.toggle("studio", !!(view.studio && !(item && item.needsData && !App.state.ds)));
-    document.title = (item ? item.label + " · " : "") + (window.BRAND.product || "") + " — " + (window.BRAND.company || "");
+    document.body.classList.toggle("landing", !!view.landing);
+    document.title = view.title || (item ? item.label + " · " : "") + (window.BRAND.product || "") + " · " + (window.BRAND.company || "");
     App.updateNav();
-    document.body.classList.remove("nav-open");
-    window.scrollTo(0, 0);
+    App.setMenu(false);
+    App.reveal(main);
+    const anchor = location.hash.split("#")[2], target = anchor && document.getElementById(anchor);
+    if (target) setTimeout(function () { target.scrollIntoView(); }, 0); else window.scrollTo(0, 0);
     main.focus({ preventScroll: true });
   };
 
@@ -234,11 +278,11 @@ window.App = window.App || {};
     App.$("#foot-services").innerHTML = (b.services || []).map(function (x) { return "<li>" + App.esc(x) + "</li>"; }).join("");
     App.$$("[data-brand]").forEach(function (el) { el.textContent = b[el.dataset.brand] || ""; });
     const contact = [];
-    if (b.phone) contact.push(["☎", '<a href="tel:' + App.esc(b.phone.replace(/\s+/g, "")) + '">' + App.esc(b.phone) + "</a>", "Phone"]);
-    if (b.email) contact.push(["✉", '<a href="mailto:' + App.esc(b.email) + '">' + App.esc(b.email) + "</a>", "Email"]);
-    if (b.website) contact.push(["⌂", '<a href="' + App.esc(b.website) + '" target="_blank" rel="noopener">' + App.esc(b.website.replace(/^https?:\/\//, "")) + "</a>", "Website"]);
-    if (b.address) contact.push(["⌖", App.esc(b.address), "Address"]);
-    App.$("#foot-contact").innerHTML = contact.map(function (c) { return '<div><span class="foot-ic" aria-label="' + c[2] + '">' + c[0] + "</span><span>" + c[1] + "</span></div>"; }).join("");
+    if (b.phone) contact.push(["phone", '<a href="tel:' + App.esc(b.phone.replace(/\s+/g, "")) + '">' + App.esc(b.phone) + "</a>", "Phone"]);
+    if (b.email) contact.push(["envelope-simple", '<a href="mailto:' + App.esc(b.email) + '">' + App.esc(b.email) + "</a>", "Email"]);
+    if (b.website) contact.push(["globe-simple", '<a href="' + App.esc(b.website) + '" target="_blank" rel="noopener">' + App.esc(b.website.replace(/^https?:\/\//, "")) + "</a>", "Website"]);
+    if (b.address) contact.push(["map-pin", App.esc(b.address), "Address"]);
+    App.$("#foot-contact").innerHTML = contact.map(function (c) { return '<li><span class="foot-ic" role="img" aria-label="' + c[2] + '">' + App.icon(c[0]) + "</span><span>" + c[1] + "</span></li>"; }).join("");
   };
 
   /* ---------- boot ---------- */
@@ -250,10 +294,13 @@ window.App = window.App || {};
       App.units = e.target.value;
       App.rerender();
     });
-    App.$("#nav-toggle").addEventListener("click", function () {
-      const open = document.body.classList.toggle("nav-open");
-      App.$("#nav-toggle").setAttribute("aria-expanded", open ? "true" : "false");
+    App.$("#nav-toggle").addEventListener("click", function () { App.setMenu(!document.body.classList.contains("menu-open")); });
+    App.$("#menu").addEventListener("click", function (e) { if (e.target.closest("a")) App.setMenu(false); });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && document.body.classList.contains("menu-open")) { App.setMenu(false); App.$("#nav-toggle").focus(); }
     });
+    // the skip link moves focus without going through the router
+    App.$("[data-skip]").addEventListener("click", function (e) { e.preventDefault(); App.$("#main").focus(); });
     // global drag & drop of weather files
     document.addEventListener("dragover", function (e) { e.preventDefault(); document.body.classList.add("dragging"); });
     document.addEventListener("dragleave", function (e) { if (!e.relatedTarget) document.body.classList.remove("dragging"); });
