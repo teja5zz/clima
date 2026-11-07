@@ -3,35 +3,46 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Climate &amp; Vastu Studio · trikrt</title>
-  <meta name="description" content="trikrt, Mysore — free climate, comfort and Vastu × science planning tools for Indian buildings: NBC 2016 climate zones, IMAC adaptive comfort, sun path, wind roses, psychrometric chart, natural ventilation, UTCI heat stress, shading design and Eco-Niwas Samhita envelope checks.">
-  <meta name="theme-color" content="#173a2a">
+  <title>Vastu home planner for Indian climates · trikrt</title>
+  <meta name="description" content="Plan a Vastu home that stays cool in your city. Free planner from trikrt, Mysuru: rooms placed by Vastu zone and by the sun, heat and breeze at your site, a review of your own drawing, window, wall and roof advice, and climate tools for over 400 Indian weather stations.">
+  <meta name="theme-color" content="#131209">
   <link rel="icon" href="img/trikrt-mark.svg" type="image/svg+xml">
   <link rel="icon" href="img/favicon-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
-  <meta property="og:title" content="Climate & Vastu Studio · trikrt">
-  <meta property="og:description" content="Climate-smart, Vastu-aware design for Indian homes: weather analysis for 400+ Indian stations and a Vastu × science house planner.">
+  <meta property="og:title" content="Vastu home planner for Indian climates · trikrt">
+  <meta property="og:description" content="Plan a Vastu home that stays cool in your city. Free Vastu and climate planner for Indian homes, with weather data for over 400 stations.">
   <meta property="og:image" content="https://climate-and-vastu-studio.web.app/img/og-image.jpg">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
+  <script type="application/ld+json" id="faq-ld"></script>
+
 </head>
 <body>
-  <a class="skip" href="#main">Skip to content</a>
-  <header class="topbar">
-    <button id="nav-toggle" class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">☰</button>
-    <a class="brand" href="#/home" aria-label="trikrt — Climate &amp; Vastu Studio, home">
-      <img class="brand-word" id="brand-logo" src="img/trikrt-wordmark.svg" alt="trikrt" width="98" height="52">
-      <span class="brand-product" data-brand="product"></span>
-    </a>
-    <div id="loc-bar" class="loc-bar" aria-live="polite"></div>
-    <label class="units"><span class="sr">Units</span>
-      <select id="units" aria-label="Units"><option value="si">SI (°C, m/s)</option><option value="ip">IP (°F, fpm)</option></select>
-    </label>
+  <a class="skip" href="#main" data-skip>Skip to content</a>
+  <header class="nav" id="nav-bar">
+    <div class="nav-bar">
+      <a class="brand" href="#/home" aria-label="trikrt, Climate and Vastu Studio, home">
+        <img class="brand-word" id="brand-logo" src="img/trikrt-wordmark.svg" alt="trikrt" width="98" height="52">
+      </a>
+      <nav class="nav-links" aria-label="Main">
+        <a href="#/vastu" data-nav="vastu">Planner</a>
+        <a href="#/home#stations" data-nav="climate">Climate tools</a>
+        <a href="#/learn" data-nav="learn">Methods</a>
+        <a href="#/about" data-nav="about">About</a>
+      </nav>
+      <div id="loc-bar" class="loc-bar" aria-live="polite"></div>
+      <label class="units"><span class="sr">Units</span>
+        <select id="units" aria-label="Units"><option value="si">SI (°C, m/s)</option><option value="ip">IP (°F, fpm)</option></select>
+      </label>
+      <a class="btn primary sm nav-cta" href="#/vastu">Start your free plan</a>
+      <button id="nav-toggle" class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="menu"><span></span><span></span></button>
+    </div>
   </header>
+  <div id="menu" class="menu" aria-label="All pages and tools" hidden><nav id="menu-nav" class="menu-inner" aria-label="All tools"></nav></div>
 
   <div class="layout">
     <aside id="sidebar" class="sidebar"><nav id="nav" aria-label="Tools"></nav></aside>
@@ -39,40 +50,53 @@
   </div>
 
   <footer class="site-footer">
-    <div class="foot-banner">
-      <img class="foot-word" src="img/trikrt-wordmark-white.svg" alt="trikrt" width="196" height="104">
-      <p class="foot-motto" data-brand="motto"></p>
-      <a class="btn light" href="#/vastu">Plan your home →</a>
-    </div>
-    <div class="foot-inner">
+    <div class="foot-top">
       <div class="foot-brand">
-        <h2 class="foot-h">Contact <span data-brand="company"></span></h2>
-        <div class="small foot-owner" data-brand="owner"></div>
-        <div id="foot-contact" class="foot-contact"></div>
+        <img src="img/trikrt-wordmark-white.svg" alt="trikrt" width="132" height="70">
+        <p class="foot-motto" data-brand="motto"></p>
+        <p class="foot-owner" data-brand="owner"></p>
         <ul id="foot-services" class="foot-services"></ul>
-        <p class="muted small">Calculations run entirely in your browser. Guidance is for early-stage design; verify code values against the latest notified NBC, ECBC and Eco-Niwas Samhita.</p>
       </div>
-      <div class="citation">
-        <h2>Citation</h2>
-        <p>This website is built on the open-source <strong>CBE Clima Tool</strong>. If you use it, please cite:</p>
-        <p class="cite">Betti, G., Tartarini, F., Nguyen, C., Schiavon, S. CBE Clima Tool: A free and open-source web application for climate analysis tailored to sustainable building design. <em>Build. Simul.</em> (2023).
-          <a href="https://doi.org/10.1007/s12273-023-1090-5" target="_blank" rel="noopener">https://doi.org/10.1007/s12273-023-1090-5</a></p>
-        <p class="cite">Indian methods: Manu, S. et al. India Model for Adaptive Comfort (IMAC). <em>Building and Environment</em> 98 (2016) 55–70 ·
-          Bureau of Indian Standards, <em>National Building Code of India 2016</em>, Part 8 · Bureau of Energy Efficiency, <em>ECBC 2017</em> and <em>Eco-Niwas Samhita 2018</em> ·
-          UTCI: Bröde, P. et al. <em>Int. J. Biometeorol.</em> 56 (2012) 481–494 · Comfort models after <em>pythermalcomfort</em> (Tartarini &amp; Schiavon, 2020).
-          <a href="#/about">Full references →</a></p>
-        <p class="muted small">CBE Clima Tool © 2021 Center for the Built Environment, UC Berkeley, MIT licence. Weather data © their respective providers (Climate.OneBuilding.org, ISHRAE, U.S. DOE). Not affiliated with UC Berkeley, BIS or BEE.</p>
+      <div class="foot-col">
+        <h2>Contact</h2>
+        <ul id="foot-contact" class="foot-contact"></ul>
+      </div>
+      <div class="foot-col">
+        <h2>Tools</h2>
+        <ul>
+          <li><a href="#/vastu">Vastu planner</a></li>
+          <li><a href="#/summary">Climate summary</a></li>
+          <li><a href="#/india">Climate zone and comfort</a></li>
+          <li><a href="#/shading">Shading designer</a></li>
+          <li><a href="#/envelope">Envelope calculator</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h2>Company</h2>
+        <ul>
+          <li><a href="#/learn">Methods and guide</a></li>
+          <li><a href="#/about">About and citation</a></li>
+          <li><a href="#/privacy">Privacy policy</a></li>
+          <li><a href="#/terms">Terms of use</a></li>
+          <li><button type="button" class="linklike" onclick="App.showConsent()">Usage statistics settings</button></li>
+        </ul>
       </div>
     </div>
-    <div class="foot-base">© <span data-brand="year"></span> <span data-brand="company"></span>. All rights reserved. · <a href="#/about">Privacy</a> · <button type="button" class="linklike" onclick="App.showConsent()">Usage statistics settings</button></div>
+    <div class="foot-cite">
+      <p>Built on the open source CBE Clima Tool by the Center for the Built Environment, UC Berkeley (MIT licence). If you use it, please cite Betti, G., Tartarini, F., Nguyen, C., Schiavon, S. (2023), <span class="cite-t">Building Simulation</span>,
+        <a href="https://doi.org/10.1007/s12273-023-1090-5" target="_blank" rel="noopener">doi.org/10.1007/s12273-023-1090-5</a>. Weather data © their providers (Climate.OneBuilding.org, ISHRAE, U.S. DOE). <a href="#/about">All references</a></p>
+      <p>Guidance is for early design. Check code values against the latest notified NBC, ECBC and Eco Niwas Samhita. Not affiliated with UC Berkeley, BIS or BEE.</p>
+    </div>
+    <div class="foot-base"><span>© <span data-brand="year"></span> <span data-brand="company"></span>. All rights reserved.</span><span><a href="#/privacy">Privacy</a> · <a href="#/terms">Terms</a></span></div>
   </footer>
 
-  <div id="busy" class="busy" hidden><div class="busy-box"><div class="spinner" aria-hidden="true"></div><span id="busy-msg">Working…</span></div></div>
+  <div id="busy" class="busy" hidden><div class="busy-box" role="status"><span id="busy-msg">Working…</span><div class="busy-bar" aria-hidden="true"></div></div></div>
   <div class="drop-overlay" aria-hidden="true"><div>Drop your EPW or ZIP file to analyse it</div></div>
 
   <script src="vendor/plotly-2.35.2.min.js"></script>
   <script src="vendor/jszip-3.10.1.min.js"></script>
   <script src="js/config.js"></script>
+  <script src="js/icons.js"></script>
   <script src="js/analytics.js"></script>
   <script src="js/core/utci-poly.js"></script>
   <script src="js/core/science.js"></script>
@@ -84,6 +108,7 @@
   <script src="js/data/vastu.js"></script>
   <script src="js/core/planner.js"></script>
   <script src="js/core/strategies.js"></script>
+  <script src="js/core/planread.js"></script>
   <script src="js/app.js"></script>
   <script src="js/views/home.js"></script>
   <script src="js/views/summary.js"></script>

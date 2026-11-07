@@ -1,22 +1,23 @@
-/* Home: hero, one-click Indian weather stations, file upload and tool overview. */
+/* Home: the landing page. Hero, why, benefits, tagline, how it works, the station finder,
+   methods, tools, FAQ and a final call to action. */
 (function (App) {
   "use strict";
   const S = App.S;
 
   const TOOLS = [
-    ["vastu", "Vastu × Science planner", "Draw your plot, pick 1–4 BHK rooms and get a layout placed by Vastu and this site's real sun, heat and wind — then drag to refine with live scores and print a report."],
-    ["summary", "Climate summary", "Location, monthly statistics, degree days and climate profiles at a glance."],
-    ["india", "Climate zone & IMAC comfort", "Automatic NBC 2016 / ECBC climate-zone classification and the India Model for Adaptive Comfort."],
-    ["strategies", "Design strategy advisor", "Passive design recommendations ranked for your site's climate data."],
-    ["temperature", "Temperature & humidity", "Annual, daily and hourly profiles with adaptive comfort bands."],
-    ["sun", "Sun & clouds", "Sun path diagrams, solar radiation and sky cover."],
-    ["shading", "Shading designer", "Size chajjas, overhangs and fins for any façade orientation."],
-    ["wind", "Wind", "Annual, monsoon-season and day/night wind roses."],
-    ["psychro", "Psychrometric chart", "Every hour of the year plotted with a comfort zone overlay."],
-    ["ventilation", "Natural ventilation", "Hours suitable for opening windows, with condensation check."],
-    ["outdoor", "Outdoor comfort & heat stress", "UTCI in sun / shade / wind scenarios and heat-index risk."],
-    ["envelope", "Envelope & ENS calculator", "Wall / roof U-values with Indian materials and Eco-Niwas Samhita RETV checks."],
-    ["explorer", "Data explorer", "Any variable as heatmap, profile or scatter with filters and CSV export."],
+    ["vastu", "Vastu × Science planner", "Draw your plot, pick 1 to 4 BHK rooms and get a layout placed by Vastu and your site's sun, heat and wind. Refine it with live scores and print a report.", "compass"],
+    ["summary", "Climate summary", "Location, monthly statistics, degree days and climate profiles at a glance.", "chart-bar"],
+    ["india", "Climate zone and IMAC comfort", "Automatic NBC 2016 and ECBC climate zone, and the India Model for Adaptive Comfort.", "map-trifold"],
+    ["strategies", "Design strategy advisor", "Passive design moves ranked for your site's climate data.", "lightbulb"],
+    ["temperature", "Temperature and humidity", "Annual, daily and hourly profiles with adaptive comfort bands.", "thermometer-simple"],
+    ["sun", "Sun and clouds", "Sun path diagrams, solar radiation and sky cover.", "cloud-sun"],
+    ["shading", "Shading designer", "Size chajjas, overhangs and fins for any wall orientation.", "sun-horizon"],
+    ["wind", "Wind", "Annual, monsoon and day and night wind roses.", "wind"],
+    ["psychro", "Psychrometric chart", "Every hour of the year plotted with a comfort zone overlay.", "drop"],
+    ["ventilation", "Natural ventilation", "Hours suitable for opening windows, with a condensation check.", "arrows-left-right"],
+    ["outdoor", "Outdoor comfort and heat stress", "UTCI in sun, shade and wind, and heat index risk.", "umbrella"],
+    ["envelope", "Envelope and ENS calculator", "Wall and roof U values with Indian materials, and Eco Niwas Samhita RETV checks.", "wall"],
+    ["explorer", "Data explorer", "Any variable as a heatmap, profile or scatter, with filters and CSV export.", "chart-scatter"],
   ];
   const QUICK = ["Mysuru", "Bengaluru", "New Delhi", "Mumbai", "Chennai", "Kolkata", "Hyderabad", "Ahmedabad", "Pune", "Jaipur"];
   const ALIASES = { bengaluru: "bangalore", mysuru: "mysore", mangaluru: "mangalore", kochi: "cochin", thiruvananthapuram: "trivandrum",
@@ -37,36 +38,87 @@
     return stations;
   };
 
+  const FAQ = [
+    ["Is it free?", "Yes. Every tool on the site is free and needs no account or sign up."],
+    ["Is my plan or drawing uploaded anywhere?", "No. Plans, drawings and weather files are processed in your browser and saved only on your device. Station weather files are downloaded from this site."],
+    ["Which places does it cover?", "Over 400 Indian weather stations, from ISHRAE, Climate.OneBuilding.org and EnergyPlus weather files. You can also load any EPW weather file for a site elsewhere."],
+    ["How does it give an opinion on my own drawing?", "Upload a photo, scan or screenshot of the plan. The planner finds the closed rooms, reads the room names and sizes written on it, and places the plan on your plot at its true size. You check the room types, then the Review tab lists which rooms to swap or move for Vastu, what already works, and what to do inside rooms that stay. Reading happens in your browser; the drawing is never uploaded."],
+    ["Do Vastu and climate advice ever disagree?", "Sometimes. A west bedroom can suit Vastu and still be the hottest room in the house. The planner shows both scores, lets you set the balance between them, and flags changes that cost comfort."],
+    ["Which Vastu rules does it follow?", "Eight 45° zones around the plot centre plus the Brahmasthan, from the Vastu Wheel for Residential Plans by Tejas Constructions. Every room type has preferred, acceptable and avoid zones."],
+    ["Can it replace an architect or engineer?", "No. It is for early design and for a better conversation with your designer. Have the final drawings, structure and services checked by a qualified professional. trikrt offers that service."],
+    ["Does it work on a phone?", "Yes. Pinch to zoom, drag rooms with a finger, and the planner panel slides up from the bottom of the screen."],
+  ];
+
   App.views.home = {
+    landing: true,
+    title: "Vastu home planner for Indian climates · trikrt",
     html: function () {
       const b = window.BRAND;
       const ds = App.state.ds;
-      return '<section class="hero">' +
-        '<div class="hero-text"><img class="hero-word" src="' + App.esc(b.wordmarkLight || "") + '" alt="' + App.esc(b.company) + '" width="196" height="104">' +
-        '<p class="eyebrow">' + App.esc(b.product) + "</p>" +
-        "<h1>" + App.esc(b.tagline) + "</h1>" +
-        '<p class="hero-lead">Pick any of 400+ Indian weather stations to see your climate, check comfort with the India Model for Adaptive Comfort, and plan every room with Vastu and building science together — with shading, ventilation and materials worked out for your site.</p>' +
-        '<div class="hero-cta"><button class="btn light" type="button" data-scroll="stations">Find my city</button><a class="btn outline-light" href="#/vastu">Open the Vastu × Science planner →</a></div>' +
-        '<ul class="hero-points"><li>400+ Indian weather stations</li><li>Vastu × climate room placement</li><li>Plans and files stay on your device</li></ul></div></section>' +
+      const cta = '<a class="btn light lg" href="#/vastu">Start your free plan</a>';
+      return '<section class="lp-hero" aria-labelledby="hero-h"><div class="lp-in"><div>' +
+        '<img class="hero-word" src="' + App.esc(b.wordmarkLight || "") + '" alt="' + App.esc(b.company) + '" width="196" height="104">' +
+        '<h1 id="hero-h" class="hero-h heading-1">Plan a Vastu home<br>that stays cool<br>in your city</h1>' +
+        '<p class="hero-sub title-2">Draw your plot, add rooms or upload your own drawing, and see where every room belongs by Vastu and by the sun, heat and breeze at your site.</p>' +
+        '<div class="hero-cta">' + cta + '<p class="hero-risk caption-2">Free, no sign up. Your plan stays on your device.</p></div>' +
+        '<ul class="hero-proof caption-1"><li>' + App.icon("map-pin") + "Weather for over 400 Indian stations</li><li>" + App.icon("seal-check") + "Built on UC Berkeley's CBE Clima Tool</li></ul></div>" +
+        '<figure class="hero-shot"><img src="img/planner-shot.jpg" width="1280" height="800" alt="The planner showing a 3 BHK plan on a 40 by 60 foot plot, with Vastu zones and the plan review panel listing a swap of the kitchen and living room."></figure>' +
+        "</div></section>" +
 
-        App.card("1 · Choose your location", stationFinder(), { id: "stations",
-          lead: "Search a city, district or state, or use your location. We list the nearest weather stations; press <strong>Analyse</strong> to load one. Files come from Climate.OneBuilding.org and EnergyPlus (ISHRAE / IWEC)." }) +
+        '<section class="lp-sec" aria-labelledby="why-h"><div class="lp-in lp-split" data-reveal><div class="lp-head"><p class="eyebrow">Why trikrt</p>' +
+        '<h2 id="why-h">Vastu charts ignore the sun.<br>Climate tools ignore Vastu.</h2>' +
+        "<p>A west bedroom in Chennai faces the 4 pm sun whatever the chart says, and a kitchen placed only for airflow can land in the north east. trikrt checks both on the same drawing, so you see where they agree and what to do where they do not.</p></div>" +
+        '<div class="compare"><div class="compare-card"><h3>A Vastu chart alone</h3><ul><li>Gives zones, not sizes or windows</li><li>Same advice for Jaipur and Kochi</li><li>No check of your actual drawing</li></ul></div>' +
+        '<div class="compare-card win"><h3>' + App.icon("check") + "With the trikrt planner</h3><ul><li>Every room scored by zone and by the walls it touches</li><li>Windows, shading, walls and roof sized from your city's weather</li><li>A review of your drawing with swaps ranked by gain</li></ul></div></div></div></section>" +
 
-        App.card("…or use your own weather file", loader(ds), { id: "load", lead: "Upload an EnergyPlus Weather file (.epw) or .zip, or paste a direct link." }) +
+        '<section class="lp-sec alt" aria-labelledby="ben-h"><div class="lp-in" data-reveal><div class="lp-head"><p class="eyebrow">What you get</p><h2 id="ben-h">Everything a plot needs before the drawings</h2></div>' +
+        '<div class="benefits">' +
+        benefit("compass", "Every room in its right zone", "Rooms are scored by Vastu zone and by the outside walls they touch. Auto arrange places a 1 to 4 BHK on your plot in one click.") +
+        benefit("seal-check", "An opinion on your own drawing", "Upload a photo or scan of your plan. The planner finds the rooms, reads their names and sizes, and reviews it: which rooms to swap, what already works, and what to do if a room stays. <a href=\"#/vastu?import=1\">Analyse my plan</a>") +
+        benefit("sun-horizon", "Windows and shading for your site", "Chajja depth for each wall from real sun angles, window sizes, and inlet and outlet positions for cross ventilation.") +
+        benefit("thermometer-hot", "Walls and a roof that keep heat out", "Wall build up for each side and roof options ranked by effect and cost, checked against Eco Niwas Samhita 2018.") +
+        "</div></div></section>" +
 
-        '<section class="card" id="tools"><header class="card-head"><h2>2 · Tools</h2></header><div class="tool-grid">' +
+        '<section class="lp-tag" aria-label="Our approach"><p data-words>' + App.esc(b.motto || "Build with the sun, the wind and the land") + ".</p>" +
+        '<small class="caption-2">Every placement in the planner is tested against the zone it sits in and the weather it will live in.</small></section>' +
+
+        '<section class="lp-sec" aria-labelledby="how-h"><div class="lp-in" data-reveal><div class="lp-head"><p class="eyebrow">How it works</p><h2 id="how-h">From plot to plan in three steps</h2></div>' +
+        '<ol class="steps3"><li><h3>Set your plot and city</h3><p>Plot size in feet or metres, the road facing, setbacks, and the nearest of over 400 weather stations.</p></li>' +
+        "<li><h3>Add rooms or upload your drawing</h3><p>Pick a house type and let it arrange, or upload the plan you already have and let the planner find and name its rooms.</p></li>" +
+        "<li><h3>Read the review and print</h3><p>Swaps and moves ranked by gain, cooling strategies drawn on the plan, and a report for your builder.</p></li></ol>" +
+        '<div class="btn-row">' + '<a class="btn primary" href="#/vastu">Start your free plan</a></div></div></section>' +
+
+        '<section class="lp-sec alt" id="stations" aria-labelledby="st-h"><div class="lp-in"><div class="lp-head"><p class="eyebrow">Climate tools</p><h2 id="st-h">Check your site\'s climate</h2>' +
+        "<p>Search a city, district or state, or use your location, and press Analyse. The planner and every climate tool then use that weather file.</p></div>" +
+        '<div class="lp-card">' + stationFinder() + "</div>" +
+        '<details class="acc lp-own"><summary>Use your own weather file</summary>' + loader(ds) + "</details></div></section>" +
+
+        '<section class="lp-sec" aria-labelledby="proof-h"><div class="lp-in" data-reveal><div class="lp-head"><p class="eyebrow">Methods you can check</p><h2 id="proof-h">Built on published standards, not rules of thumb</h2>' +
+        '<p>Every number on the site comes from a method you can look up. <a href="#/learn">Read the methods</a>.</p></div><div class="proof">' +
+        proof("NBC 2016", "Climate zones, minimum room sizes and window areas from the National Building Code of India.") +
+        proof("Eco Niwas Samhita 2018", "Roof U value limit and openable window area for homes.") +
+        proof("IMAC comfort model", "Comfort ranges measured in Indian homes, wider than imported defaults.") +
+        proof("CBE Clima Tool", "Climate engine from UC Berkeley, published in Building Simulation (2023).") +
+        '</div><div class="maker"><p><b>' + App.esc(b.owner || "") + "</b> leads trikrt in Mysuru. " +
+        "Need drawings, structural design or a turnkey build? trikrt offers those services.</p>" +
+        (b.phone ? '<a class="btn light" href="tel:' + App.esc(b.phone.replace(/\s+/g, "")) + '">' + App.icon("phone") + "Call " + App.esc(b.phone) + "</a>" : "") + "</div></div></section>" +
+
+        '<section class="lp-sec alt" aria-labelledby="tools-h"><div class="lp-in" data-reveal><div class="lp-head"><p class="eyebrow">More tools</p><h2 id="tools-h">Thirteen tools for your site\'s climate</h2></div><div class="tool-grid">' +
         TOOLS.map(function (t, i) {
-          return '<a class="tool' + (i === 0 ? " tool-feature" : "") + '" href="#/' + t[0] + '"><h3>' + t[1] + "</h3><p>" + t[2] + "</p></a>";
-        }).join("") + "</div></section>" +
+          return '<a class="tool' + (i === 0 ? " tool-feature" : "") + '" href="#/' + t[0] + '">' + App.icon(t[3]) + "<h3>" + t[1] + "</h3><p>" + t[2] + "</p></a>";
+        }).join("") + "</div></div></section>" +
 
-        App.card("Why climate analysis matters for Indian buildings",
-          '<div class="why-grid">' +
-          '<div><h3>Five climates, one country</h3><p>India spans hot-dry deserts, warm-humid coasts, composite plains, temperate plateaus and cold Himalayan regions. A design that works in Jaipur can fail in Kochi.</p></div>' +
-          '<div><h3>Vastu meets science</h3><p>Many Vastu placements — a cool south-west bedroom wall, an east-facing pooja room for morning light, toilets as buffers on hot façades — have climatic logic. The planner shows where they agree with your site\'s data and how to handle conflicts.</p></div>' +
-          '<div><h3>Comfort without air-conditioning</h3><p>Field studies behind the IMAC model show occupants of naturally ventilated Indian buildings accept a much wider temperature range than international defaults — saving energy when designed for.</p></div>' +
-          '<div><h3>Code compliance</h3><p>NBC 2016, ECBC 2017 and Eco-Niwas Samhita set requirements by climate zone. Knowing your zone and envelope numbers early avoids costly redesign.</p></div></div>');
+        '<section class="lp-sec" aria-labelledby="faq-h"><div class="lp-in" data-reveal><div class="lp-head"><p class="eyebrow">Questions</p><h2 id="faq-h">Before you start</h2></div><div class="faq">' +
+        FAQ.map(function (q) { return "<details><summary>" + q[0] + App.icon("caret-down") + "</summary><p>" + q[1] + "</p></details>"; }).join("") + "</div></div></section>" +
+
+        '<section class="lp-final" aria-labelledby="final-h"><h2 id="final-h" class="hero-h heading-2">Plan a Vastu home<br>that stays cool<br>in your city</h2>' +
+        '<p class="hero-sub title-2">Free, no sign up. Your plan stays on your device.</p><div class="hero-cta">' + cta + "</div></section>";
     },
     mount: function (root) {
+      words(root);
+      const ld = document.getElementById("faq-ld");
+      if (ld && !ld.textContent) ld.textContent = JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage",
+        mainEntity: FAQ.map(function (q) { return { "@type": "Question", name: q[0], acceptedAnswer: { "@type": "Answer", text: q[1] } }; }) });
       App.$$("[data-scroll]", root).forEach(function (b) { b.addEventListener("click", function () { App.$("#" + b.dataset.scroll, root).scrollIntoView({ behavior: "smooth" }); }); });
       const input = App.$("#file-input", root);
       App.$("#drop", root).addEventListener("click", function (e) { if (e.target.tagName !== "INPUT") input.click(); });
@@ -103,10 +155,31 @@
     },
   };
 
+  function benefit(icon, title, text) {
+    return '<div class="benefit"><div class="benefit-ic">' + App.icon(icon) + "</div><h3>" + title + "</h3><p>" + text + "</p></div>";
+  }
+  function proof(title, text) {
+    return '<div class="proof-item">' + App.icon("seal-check") + "<div><b>" + title + "</b><span>" + text + "</span></div></div>";
+  }
+
+  // Tagline reveal: each word moves from a muted tone to full colour as it crosses a line
+  // 40 % up from the bottom of the screen.
+  function words(root) {
+    const p = App.$("[data-words]", root);
+    if (!p) return;
+    p.innerHTML = p.textContent.split(/\s+/).map(function (w) { return '<span class="w">' + App.esc(w) + "</span>"; }).join(" ");
+    const ws = App.$$(".w", p);
+    if (!("IntersectionObserver" in window) || matchMedia("(prefers-reduced-motion: reduce)").matches) { ws.forEach(function (w) { w.classList.add("on"); }); return; }
+    const io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("on"); io.unobserve(e.target); } });
+    }, { rootMargin: "0px 0px -40% 0px" });
+    ws.forEach(function (w) { io.observe(w); });
+  }
+
   function stationFinder() {
     return '<div class="finder"><div class="finder-left">' +
-      '<div class="pair finder-search"><input id="st-search" type="search" placeholder="City, district or state — e.g. Mysuru, Kerala" aria-label="Search weather stations">' +
-      '<button id="st-near" class="btn" type="button">◎ Near me</button></div>' +
+      '<div class="pair finder-search"><input id="st-search" type="search" placeholder="City, district or state, for example Mysuru" aria-label="Search weather stations">' +
+      '<button id="st-near" class="btn" type="button">' + App.icon("crosshair") + 'Near me</button></div>' +
       '<div class="quick">' + QUICK.map(function (c) { return '<button class="chip" type="button" data-quick="' + c + '">' + c + "</button>"; }).join("") + "</div>" +
       '<div id="st-results" class="st-results" aria-live="polite"><p class="muted">Loading stations…</p></div></div>' +
       '<div class="finder-right"><div id="india-map" class="chart map"></div><p class="muted small">Coastlines only; tap a dot to list that station. Larger dots are the current results.</p></div></div>' +
@@ -119,7 +192,7 @@
   function loader(ds) {
     return '<div class="load-grid">' +
       '<div id="drop" class="drop" tabindex="0" role="button" aria-label="Upload EPW or ZIP file">' +
-      '<div class="drop-icon" aria-hidden="true">⇪</div><strong>Drop an .epw or .zip file here</strong><span>or click to browse</span>' +
+      '<div class="drop-icon">' + App.icon("upload-simple") + '</div><strong>Drop an .epw or .zip file here</strong><span>or click to browse</span>' +
       '<input id="file-input" type="file" accept=".epw,.zip" hidden></div>' +
       '<div class="load-side">' +
       '<form id="url-form" class="field"><label for="url-input">Link to an .epw or .zip</label><div class="pair">' +

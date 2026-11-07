@@ -9,7 +9,7 @@ const vm = require("vm");
 global.window = global;
 global.btoa = (s) => Buffer.from(s, "binary").toString("base64");
 global.atob = (s) => Buffer.from(s, "base64").toString("binary");
-for (const f of ["core/utci-poly.js", "core/science.js", "core/variables.js", "core/epw.js", "core/siting.js", "data/vastu.js", "core/planner.js", "core/strategies.js"]) {
+for (const f of ["core/utci-poly.js", "core/science.js", "core/variables.js", "core/epw.js", "core/siting.js", "data/vastu.js", "core/planner.js", "core/strategies.js", "core/planread.js"]) {
   vm.runInThisContext(fs.readFileSync(path.join(__dirname, "..", "js", f), "utf8"), { filename: f });
 }
 const S = global.App.S;
@@ -230,4 +230,71 @@ test("windows, walls, roof and checklist for keeping cool", () => {
     assert.ok(s.checks.some((c) => c.status !== "tip") && s.checks.some((c) => c.status === "tip"));
     assert.ok(s.vent.crossCount <= s.vent.habitable);
   }
+});
+
+test("plan review suggests swapping rooms back into their zones", () => {
+  const P = global.App.Plan, site = P.defaultSite(), ctx = { site, metrics: null, weight: 1 };
+  const good = P.autoArrange(ctx, P.fromPreset("3bhk"));
+  assert.strictEqual(P.review(ctx, good).band[0], "strong");
+  const items = good.map((it) => Object.assign({}, it));
+  const k = items.find((i) => i.t === "kitchen"), l = items.find((i) => i.t === "living");
+  const rk = { x: k.x, y: k.y, w: k.w, h: k.h };
+  Object.assign(k, { x: l.x, y: l.y, w: l.w, h: l.h });
+  Object.assign(l, rk);
+  const rv = P.review(ctx, items);
+  assert.notStrictEqual(rv.band[0], "strong"); // a kitchen in an avoid zone caps the verdict
+  const sw = rv.changes[0];
+  assert.strictEqual(sw.kind, "swap");
+  assert.deepStrictEqual([sw.a, sw.b].sort(), [k.uid, l.uid].sort());
+  assert.ok(rv.projected > rv.vastu);
+});
+
+test("plan reading finds the rooms of a drawing and reads their names", () => {
+  const R = global.App.PlanRead, w = 400, h = 500, g = new Uint8Array(w * h).fill(255);
+  const ink = (x0, y0, x1, y1) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) g[y * w + x] = 20; };
+  ink(50, 50, 350, 56); ink(50, 444, 350, 450); ink(50, 50, 56, 450); ink(344, 50, 350, 450);   // outer walls
+  ink(197, 50, 203, 450); ink(50, 247, 350, 253); ink(203, 347, 350, 353);                     // partitions
+  for (let y = 100; y < 104; y++) for (let x = 197; x < 203; x++) g[y * w + x] = 255;          // a narrow gap
+  ink(100, 140, 140, 146); ink(250, 300, 290, 304);                                            // room names
+  ink(50, 470, 350, 471);                                                                      // a dimension line outside
+  const det = R.detect(g, w, h);
+  assert.strictEqual(det.rooms.length, 5);
+  assert.deepStrictEqual([det.building.x0, det.building.y0, det.building.x1, det.building.y1].map((v) => Math.round(v / 10)), [6, 6, 34, 44]); // inner wall faces
+  const tl = det.rooms[0];
+  assert.ok(Math.abs(tl.x0 - 56) <= 3 && Math.abs(tl.x1 - 197) <= 3 && Math.abs(tl.y1 - 247) <= 3);
+
+  assert.strictEqual(R.typeOf("MASTER BED ROOM"), "master");
+  assert.strictEqual(R.typeOf("Bed Room 2"), "children");
+  assert.strictEqual(R.typeOf("KIT."), "kitchen");
+  assert.strictEqual(R.typeOf("W.C."), "toilets");
+  assert.strictEqual(R.typeOf("SIT OUT"), "open");
+  assert.strictEqual(R.typeOf("PASSAGE"), "skip");
+  assert.strictEqual(R.typeOf("12'0\" x 10'0\""), null);
+
+  R.assignWords(det, [{ text: "KITCHEN", x0: 100, y0: 140, x1: 140, y1: 146 }, { text: "TOILET", x0: 250, y0: 300, x1: 290, y1: 304 }]);
+  assert.strictEqual(det.rooms[0].type, "kitchen");
+  const items = R.toItems(det, { x0: 1, y0: 2, x1: 11, y1: 16 });
+  assert.strictEqual(items.length, 5);
+  assert.ok(items.every((it) => it.x >= 0.9 && it.y >= 1.9 && it.x + it.w <= 11.1 && it.y + it.h <= 16.1));
+  assert.strictEqual(items.find((it) => it.rid === det.rooms[0].id).t, "kitchen");
+  assert.ok(items.filter((it) => it.guess).length === 3);
+});
+
+test("plan reading takes the scale from room sizes written on the drawing", () => {
+  const R = global.App.PlanRead;
+  const ft = (a, b) => R.sizeOf(a).map((v) => +(v / 0.3048).toFixed(2)).concat(b ? [] : []);
+  assert.deepStrictEqual(ft("14'0\" x 13'6\""), [14, 13.5]);
+  assert.deepStrictEqual(ft("BED 12' X 10'"), [12, 10]);
+  assert.deepStrictEqual(R.sizeOf("4.20 x 3.60"), [4.2, 3.6]);
+  assert.strictEqual(R.sizeOf("KITCHEN"), null);
+  // a 14 x 12 ft room drawn 140 px wide and 120 px tall: 1 ft = 10 px
+  const det = { rooms: [{ x0: 0, y0: 0, x1: 140, y1: 120, text: "BED ROOM 14'0\" x 12'0\"" }, { x0: 140, y0: 0, x1: 240, y1: 120, text: "HALL" }],
+    building: { x0: 0, y0: 0, x1: 240, y1: 300 } };
+  const mpp = R.scale(det);
+  assert.ok(Math.abs(mpp - 0.03048) < 1e-4);
+  const site = { W: 40 * 0.3048, D: 60 * 0.3048, set: { front: 3, rear: 1.5, left: 1, right: 1 } };
+  const r = R.placement(det, mpp, site, { x0: 1, y0: 1.5, x1: 11.19, y1: 15.29 });
+  assert.ok(r.scaled && Math.abs(r.x1 - r.x0 - 24 * 0.3048) < 0.01 && Math.abs(r.y1 - (site.D - 3)) < 0.01);
+  // too big for the plot: fitted inside the setbacks instead
+  assert.strictEqual(R.placement(det, mpp * 3, site, { x0: 1, y0: 1.5, x1: 11, y1: 15 }).scaled, false);
 });
